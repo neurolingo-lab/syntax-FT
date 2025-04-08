@@ -7,6 +7,6 @@
 #SBATCH --cpus-per-task=64
 #SBATCH --mem=128GB
 
-7z x /home/gercek/livenv.zip -o/tmp/
+7z x /home/gercek/gercek_li_venv.7z -o/tmp/
 source /tmp/gercek_li_venv/bin/activate
 mne_bids_pipeline --config $HOME/scratch/syntax_im/mnebids_pipeline_config.py  --subject $PIPELINE_SUB --session 01 --steps preprocessing/head_pos --task $PIPELINE_TASK
