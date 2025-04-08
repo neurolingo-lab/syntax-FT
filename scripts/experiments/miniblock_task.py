@@ -72,8 +72,8 @@ if subinfo["debug"]:  # Override the experiment parameters with the debug ones i
 ####################################
 
 group = "even" if subinfo["even_group"] == 0 else "odd"
-onewordpath = spec.WORDSPATH / f"{group}_one_word_stimuli.csv"
-twowordpath = spec.WORDSPATH / f"{group}_two_word_stimuli.csv"
+onewordpath = spec.STIMPATH / f"{group}_one_word_stimuli.csv"
+twowordpath = spec.STIMPATH / f"{group}_two_word_stimuli.csv"
 
 rng = np.random.default_rng(subinfo["seed"])
 # Prepare word stimuli by first shuffling, then assigning frequencies

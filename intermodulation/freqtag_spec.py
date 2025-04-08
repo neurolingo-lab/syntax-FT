@@ -4,7 +4,7 @@ from types import SimpleNamespace
 from attridict import AttriDict
 
 # Parameters for the experiment itself
-WORDSPATH = Path(__file__).parents[1]
+STIMPATH = Path(__file__).parents[1] / "stimuli"
 MINIBLOCK_LEN = 10
 N_BLOCKS = 3
 N_1W_BLOCKS = 2

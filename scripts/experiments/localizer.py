@@ -60,7 +60,7 @@ if subinfo["debug"]:  # Override the experiment parameters with the debug ones i
 ##         Load in stimuli         ##
 #####################################
 
-onewordpath = spec.WORDSPATH / "evlab_fast_localizer.csv"
+onewordpath = spec.STIMPATH / "evlab_fast_localizer.csv"
 
 rng = np.random.default_rng(subinfo["seed"])
 setidx = rng.choice(np.arange(10))

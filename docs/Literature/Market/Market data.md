@@ -1,0 +1,16 @@
+- Approx. 200,000 speech-language pathologists in the US. Roughly 60 per 100,000 residents. This presents a large potential client base
+	- Based on the American Speech-Language Hearing Association (ASHA) survey
+	- Europe has smaller numbers of practitioners compared to the US, but is showing steady growth ![[../../assets/Pasted image 20250309081700.png]]
+	- SEA, China, India, and nearby regions are showing a strong growth in the sector
+	- Proving an affordable and effective device for determining neuropathology of disorders represents a market of several hundred thousand customers
+- Disorder categories, and which ones would be candidates for diagnosis:
+	- Specific language impairment (Children)
+		- Expressive language disorder (developmental, focused on expression and not comprehension)
+			- Childhood Apraxia of Speech (CAS, DAS) included in this umbrella term. Name is misleading: not purely a motor disorder, also involves great difficulty manipulating speech sounds and other literacy issues
+		- Receptive language disorder (developmental, primarily issues with comprehension)
+		- Combination of two is very common, as the whole language system is affected
+		- **Generally accepted to be strongly genetic, with no clear neural signature in data. Differences to healthy cohorts are often subtle and similar to other neurodevelopmental disorders.**
+	- All modern tests for SLI/Developmental language disorder are behavioral. There are no biological tests. The space of possible pathologies is wide and the definitions of individual conditions are fuzzy and overlap.
+	- Austism Spectrum Disorder (ASD) is a strong risk factor for language impairment. 
+		- Studies show that for ASD early treatment can result in more positive outcomes on behavioral criterion including frequency of communication, social communication, and responsiveness
+		- There is general agreement on the necessity of early diagnosis of other language disorder that fall under the spectrum of SLI, as these issue can greatly affect mental well-being, academic (and later professional) achievement, and social integration of children if left unaddressed before beginning school
