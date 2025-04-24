@@ -233,7 +233,9 @@ class OneWordMiniblockState(ps.FrameFlickerStimState, StartStopTriggerLogMixin):
         # Ignore the initial passed words and use the list
         self.wordset = self.word_list.query("miniblock == 0")
         self._init_miniblock()
-        self.update_calls.insert(1, self.check_word_update)
+        self.update_calls.insert(
+            1, self.check_word_update
+        )  # TODO: Make sure inserting after is valid; the frame num here is two frames in the future because _update_stim increments it
         self.end_calls.append(self._inc_miniblock)
         if self.stim.reporting_pix:
             self.update_calls.append(self._set_pixreport)
