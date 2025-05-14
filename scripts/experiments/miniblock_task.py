@@ -2,6 +2,7 @@ from datetime import datetime
 from functools import partial
 
 import numpy as np
+import pandas as pd
 import psychopy.event as psyev
 import psychopy.logging as psylog
 import psychopy.visual as psyv
@@ -73,7 +74,7 @@ if subinfo["debug"]:  # Override the experiment parameters with the debug ones i
 
 group = "even" if subinfo["even_group"] == 0 else "odd"
 onewordpath = spec.STIMPATH / f"{group}_one_word_stimuli.csv"
-twowordpath = spec.STIMPATH / f"{group}_two_word_stimuli.csv"
+twowordpath = spec.STIMPATH / f"new_{group}_two_word_stimuli.csv"
 
 rng = np.random.default_rng(subinfo["seed"])
 # Prepare word stimuli by first shuffling, then assigning frequencies
@@ -84,6 +85,46 @@ onewords, twowords, allwords = imu.load_prep_words(
     miniblock_len=spec.MINIBLOCK_LEN,
     freqs=[stimpars["f1"], stimpars["f2"]],
 )
+twowords.reset_index(drop=True, inplace=True)
+twowords.drop(columns=["Unnamed: 0", "index"], inplace=True)
+
+# Sample and shuffle miniblocks of each condition
+cond_mini_ids = (
+    twowords.groupby("condition")
+    .agg({"miniblock": "value_counts"})
+    .rename(columns={"miniblock": "count"})
+    .reset_index()
+)
+minis_per_block = len(cond_mini_ids.query("condition == 'phrase'")) / spec.N_BLOCKS
+if minis_per_block % 1 != 0:
+    raise ValueError(
+        f"Number of miniblocks per block is not an integer: {minis_per_block}.\n"
+        f"Please check the number of miniblocks in the stimulus file."
+    )
+else:
+    minis_per_block = int(minis_per_block)
+
+
+blockdfs = []
+startval = 0
+for i in range(spec.N_BLOCKS):
+    blockminis = (
+        cond_mini_ids.groupby("condition").sample(minis_per_block, random_state=rng).sample(frac=1)
+    )
+    cond_mini_ids = cond_mini_ids[~cond_mini_ids["miniblock"].isin(blockminis["miniblock"])]
+    blockdf = (
+        twowords.set_index(["condition", "miniblock", "w1", "w2"])
+        .loc[:, blockminis["miniblock"], :, :]
+        .reset_index()
+    )
+    blockdf["miniblock"] = np.repeat(
+        np.arange(startval, minis_per_block * 3 + startval), spec.MINIBLOCK_LEN
+    )
+    blockdfs.append(blockdf)
+    startval = blockdf["miniblock"].max() + 1
+twowords = pd.concat(blockdfs).reset_index(drop=True)
+
+
 if subinfo["debug"] and stimpars["n_mini"] is not None:
     maxmini = stimpars["n_mini"]
     twowords = twowords.query(f"miniblock < {maxmini}")
