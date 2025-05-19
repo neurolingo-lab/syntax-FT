@@ -2,7 +2,6 @@ from datetime import datetime
 from functools import partial
 
 import numpy as np
-import pandas as pd
 import psychopy.event as psyev
 import psychopy.logging as psylog
 import psychopy.visual as psyv
@@ -83,46 +82,14 @@ onewords, twowords, allwords = imu.load_prep_words(
     path_2w=twowordpath,
     rng=rng,
     miniblock_len=spec.MINIBLOCK_LEN,
+    N_blocks=3,
     freqs=[stimpars["f1"], stimpars["f2"]],
 )
 twowords.reset_index(drop=True, inplace=True)
-twowords.drop(columns=["Unnamed: 0", "index"], inplace=True)
-
-# Sample and shuffle miniblocks of each condition
-cond_mini_ids = (
-    twowords.groupby("condition")
-    .agg({"miniblock": "value_counts"})
-    .rename(columns={"miniblock": "count"})
-    .reset_index()
-)
-minis_per_block = len(cond_mini_ids.query("condition == 'phrase'")) / spec.N_BLOCKS
-if minis_per_block % 1 != 0:
-    raise ValueError(
-        f"Number of miniblocks per block is not an integer: {minis_per_block}.\n"
-        f"Please check the number of miniblocks in the stimulus file."
-    )
-else:
-    minis_per_block = int(minis_per_block)
-
-
-blockdfs = []
-startval = 0
-for i in range(spec.N_BLOCKS):
-    blockminis = (
-        cond_mini_ids.groupby("condition").sample(minis_per_block, random_state=rng).sample(frac=1)
-    )
-    cond_mini_ids = cond_mini_ids[~cond_mini_ids["miniblock"].isin(blockminis["miniblock"])]
-    blockdf = (
-        twowords.set_index(["condition", "miniblock", "w1", "w2"])
-        .loc[:, blockminis["miniblock"], :, :]
-        .reset_index()
-    )
-    blockdf["miniblock"] = np.repeat(
-        np.arange(startval, minis_per_block * 3 + startval), spec.MINIBLOCK_LEN
-    )
-    blockdfs.append(blockdf)
-    startval = blockdf["miniblock"].max() + 1
-twowords = pd.concat(blockdfs).reset_index(drop=True)
+try:
+    twowords.drop(columns=["Unnamed: 0", "index"], inplace=True)
+except KeyError:
+    pass
 
 
 if subinfo["debug"] and stimpars["n_mini"] is not None:
