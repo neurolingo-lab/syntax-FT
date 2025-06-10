@@ -23,12 +23,12 @@ Circled sensors were found to be significant for the oddball frequency response.
 
 The source space showed similar results, with significance in all three conditions with a gradient of strength CN > NW > PW. Note that they indicate vOTC (not easily visible in the below figure, but was noted in the text), a.k.a VWFA, was included in all three conditions!
 
-![[./assets/imag_a_00414_fig5.jpeg]]
+![](./assets/imag_a_00414_fig5.jpeg)
 
 
 Finally, the data showed a strong lateralization of this sensitivity particularly when compared against the baseline frequencies. Not all subjects showed a strong lateralization but the general trend was established. Below are the Z-scores for many ROIs in the source space in the L/R hemispheres. The left column shows the Z-score for the oddball frequency, while the right shows the Z-score for the baseline frequency.
 
-![[./assets/imag_a_00414_fig7.jpeg]]
+![](./assets/imag_a_00414_fig7.jpeg)
 
 Similar plots were shown for the sensor data which also show a lateralization in all MEG data but much less so in EEG data. 70-95% of participants showed left lateralization depending on the condition and sensor type, while the baseline frequency consistently showed near 50% (chance) left lateralization.
 
