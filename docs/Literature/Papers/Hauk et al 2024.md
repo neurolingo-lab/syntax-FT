@@ -47,6 +47,12 @@ The frequency-space analysis used a method from the Lochy paper I didn't recall:
 
 This Z-scoring allows for comparison even between sensor modalities.
 
+Regarding source localization, almost all settings matched the MNE defaults:
+- 3-layer boundary element model
+- 4-icosahedron downsampling
+- L2-regularized MNE
+- Lambda (SNR) of 3
+- ROIs were selected from inferior, middle, superior temporal lobe from Desikan-Killiany cortical parcellation
 
 
 
