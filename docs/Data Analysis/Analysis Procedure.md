@@ -1,10 +1,20 @@
 # Rough outline of planned analyses
 
+### Metrics of choice
+
+FT Response:
+
+Two options are seen in the literature. The SNR ($\frac{\mu_i}{\mu_{i-k, \dots , i-1, i+1,  \dots , i+k}}$, or the mean at bin $i$ divided by the mean of the neighboring bins with a possible skipped set of neighbors) and the Z-scored baseline-corrected metric used by Lochy et al 2015. The latter metric is not commonly used at all, and I've only seen it in the Olaf Hauk reproduction of that work with English stimuli and source localization. Based on the prevalence we will use the SNR.
+
+Significant difference of FT response:
+
+Cluster-based permutation tests are very well-established in the literature and provide a good way of comparing the difference of two sets of epochs against a bootstrapped null distribution. We will use these tests to establish where we can see significant differences **between different conditions for the same FFT bin, either a tag or IM**.
+
 ### Visual Word Form Area (VWFA)
 
 - In one-word (1W) task:
   - Compute SNR in word and non-word conditions for each source
-  - Candidate areas have a **SNR ratio of Word:Non-Word > 1** with substantially (meaning TBD) and significantly more activation in the word condition
+  - Candidate areas have a **SNR ratio of Word:Non-Word > 1** with significantly more activation in the word condition
   - Putative VWFA selected based on this ratio and anatomical location
   - Key question: **Which regions are selectively showing FT responses to words only?**
     - Secondary question: Does the tag of the non-word (F1/F2) affect SNR ratio?
@@ -31,6 +41,8 @@
     - Possibility 2: Region X shows a 2W W:NW SNR ratio similar to the 1W condition. Whether the words form a phrase or not does not affect the strength of F1/F2 responses and so responses are similar between the phrase and non-phrase conditions.
 
 Assuming that an intermodulation response **must be produced by syntactic processing** (which of course is not a given at all), we can list the possible outcomes for a given region. Note that "Phrase:Non-Phrase SNR ratio" indicates the ratio of the primary tags (F1/F2) between the phrase and non-phrase conditions. I.e. $\text{P:NP Ratio}_{F1} = \frac{\text{Phrase F1 SNR}}{\text{Non-Phrase F1 SNR}}$.
+
+Note that the "SNR ratio" mentioned can also be thought of as as the sign of $\mu_A - \mu_B$: greater than one if positive and less than one if negative.
 
 | Possibility | 1W W:NW SNR Ratio | 2W W:NW SNR Ratio | Phrase:Non-Phrase SNR ratio of words | IM Response | Takeaway                                                                                                                                                                            | Lexical Access? | Syntactic Processing? |
 |-------------|-------------------|-------------------|--------------------------------------|-------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------|-----------------------|
