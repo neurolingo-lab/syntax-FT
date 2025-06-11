@@ -17,13 +17,13 @@ Cluster-based permutation tests are very well-established in the literature and 
   - Candidate areas have a **SNR ratio of Word:Non-Word > 1** with significantly more activation in the word condition
   - Putative VWFA selected based on this ratio and anatomical location
   - Key question: **Which regions are selectively showing FT responses to words only?**
-    - Secondary question: Does the tag of the non-word (F1/F2) affect SNR ratio?
+    - Secondary question: Does the tag of the non-word (F1/F2) affect SNR ratio? %%Not sure what's meant by it, is it about the exact flicker value? Why is it for the non-word only?%%
 - In two-word (2W) task:
   - Partition trials by:
     - Non-Word / (Phrase + Non-phrase)
     - Non-Word in L/R hemi-field
     - Non-Word tagged F1/F2
-  - For trials with matching frequency tag side (L/R) **Does our VWFA candidate still show the same selectivity, i.e. SNR ratio, as in the 1W task for words over non-words?**
+  - For trials with matching frequency tag side (L/R) **Does our VWFA candidate still show the same selectivity, i.e. SNR ratio, as in the 1W task for words over non-words?** %%I think this is a lot to ask for, as VWFA is on the left (or at least stronger in LH than RH). I'd make it more neutral: confirm that the ROI identified as VWFA on the basis of 1-word condition is word-selective.%%
     - Possibility 1: VWFA is still just as selective for words as in the 1W condition. The SNR ratio from the 2W task is within a confidence interval of the 1W task ratio
     - Possibility 2: VWFA shows a lower ratio of Word:Non-Word SNR than in the 1W condition, but still > 1. Maybe the two halves are recognized together?
     - Possibility 3: VWFA Shows a lower ratio of W:NW SNR, below 1. In this case, panic?
@@ -33,16 +33,18 @@ Cluster-based permutation tests are very well-established in the literature and 
 - 1W Task:
   - As part of the selection for VWFA regions, looks for regions in posterior temporal lobe with similar pattern (W:NW SNR > 1, significant). These are possibilities for single-word lexical access.
 - 2W Task:
-  - Region(s) should show similar patterns to VWFA when using same parition of trials by hemi-field/tag freq/(non-)word, with non-word tags not represented but word tags represented
-  - Key question: **Which regions show both a selectively for words, as well as responses that differ when the two words form a phrase?**
+  - Region(s) should show similar patterns to VWFA when using same partition of trials by hemi-field/tag freq/(non-)word, with non-word tags not represented but word tags represented %%Not clear - are you looking for regions everywehere else in the brain with such properties?%%
+  - Key question: **Which regions show both a selectively for words, as well as responses that differ when the two words form a phrase?**%%Paraphrased, but the same meaning I think: Of the word-selective ROIs identified in the previous step, are there any ROIs whose activity differs for Nonprase/Phrase condition (possibly even Nonword/Nonphrase/Phrase condition)? 
     - "Responses that differ" could mean intermodulation responses only in the phrase condition for some region X.
-    - Could also mean enhanced responses to F1 and F2 in region X when they combine? This may be the case if a region only performs lexical access for individual words but is gain-modulated by phrase
-    - Possibility 1: Region X shows a 2W W:NW SNR ratio similar to the 1W condition. Whether the words form a phrase or not does not affect the strength of F1/F2 responses and so responses are similar between the phrase and non-phrase conditions.
+    - Could also mean enhanced responses to F1 and F2 in region X when they combine? This may be the case if a region only performs lexical access for individual words but is gain-modulated by phrase %%That's an interesting idea! One can also extend it to the phrase head specifically (ie 'table' in 'green table') - is the tag corresponding to the phrase head intensified in the phrase compared to nonphrase condition. Note that most heads will be the right word in the phrase condition in our stimuli, but I think that's ok as we can look at the right word in the nonword condition too%%
+    - Possibility 1: Region X shows a 2W W:NW SNR ratio similar to the 1W condition. Whether the words form a phrase or not does not affect the strength of F1/F2 responses and so responses are similar between the phrase and non-phrase conditions. %%I don't think we would be comparing 2W and 1W condition here. Our syntactic composition questions are just 2W condition business. The 1W condition is to outline ROIs mostly%%
     - Possibility 2: Region X shows a 2W W:NW SNR ratio similar to the 1W condition. Whether the words form a phrase or not does not affect the strength of F1/F2 responses and so responses are similar between the phrase and non-phrase conditions.
 
-Assuming that an intermodulation response **must be produced by syntactic processing** (which of course is not a given at all), we can list the possible outcomes for a given region. Note that "Phrase:Non-Phrase SNR ratio" indicates the ratio of the primary tags (F1/F2) between the phrase and non-phrase conditions. I.e. $\text{P:NP Ratio}_{F1} = \frac{\text{Phrase F1 SNR}}{\text{Non-Phrase F1 SNR}}$.
+Assuming that an intermodulation response **must be produced by syntactic processing** (which of course is not a given at all %%why not? what else can it be - semantic composition?%%), we can list the possible outcomes for a given region. Note that "Phrase:Non-Phrase SNR ratio" indicates the ratio of the primary tags (F1/F2) between the phrase and non-phrase conditions. I.e. $\text{P:NP Ratio}_{F1} = \frac{\text{Phrase F1 SNR}}{\text{Non-Phrase F1 SNR}}$.
 
 Note that the "SNR ratio" mentioned can also be thought of as as the sign of $\mu_A - \mu_B$: greater than one if positive and less than one if negative.
+
+%%I havent't looked at the table, because I think we should be separating the step of identifying the ROIs on the basis of 1W condition and the analysis of 1W condition (ie extension of Hauk 2022) from the analysis and RQs of 2W condition%%
 
 | Possibility | 1W W:NW SNR Ratio | 2W W:NW SNR Ratio | Phrase:Non-Phrase SNR ratio of words | IM Response | Takeaway                                                                                                                                                                            | Lexical Access? | Syntactic Processing? |
 |-------------|-------------------|-------------------|--------------------------------------|-------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------|-----------------------|
