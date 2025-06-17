@@ -2064,7 +2064,7 @@ For volume or mixed source spaces, choose `1.0`.
     version of MNE-BIDS-Pipeline.
 """
 
-depth: Annotated[float, Interval(ge=0, le=1)] | dict = 0.8
+depth: Annotated[float, Interval(ge=0, le=1)] | dict = 0
 """
 If a number, it acts as the depth weighting exponent to use
 (must be between `0` and`1`), with`0` meaning no depth weighting is performed.
@@ -2073,7 +2073,7 @@ Can also be a dictionary containing additional keyword arguments to pass to
 `mne.forward.compute_depth_prior` (see docstring for details and defaults).
 """
 
-inverse_method: Literal["MNE", "dSPM", "sLORETA", "eLORETA"] = "dSPM"
+inverse_method: Literal["MNE", "dSPM", "sLORETA", "eLORETA"] = "MNE"
 """
 Use minimum norm, dSPM (default), sLORETA, or eLORETA to calculate the inverse
 solution.
