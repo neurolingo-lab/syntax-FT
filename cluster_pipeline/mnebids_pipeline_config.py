@@ -1929,14 +1929,14 @@ algorithm with the T1-weighted images otherwise.
 *[FLASH MRI]: Fast low angle shot magnetic resonance imaging
 """
 
-recreate_bem: bool = False
+recreate_bem: bool = True
 """
 Whether to re-create the BEM surfaces, even if existing surfaces have been
 found. If `False`, the BEM surfaces are only created if they do not exist
 already. `True` forces their recreation, overwriting existing BEM surfaces.
 """
 
-recreate_scalp_surface: bool = False
+recreate_scalp_surface: bool = True
 """
 Whether to re-create the scalp surfaces used for visualization of the
 coregistration in the report and the lower-density coregistration surfaces.
