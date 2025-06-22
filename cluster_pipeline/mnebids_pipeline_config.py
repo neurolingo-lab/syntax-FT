@@ -4,6 +4,7 @@ from typing import Annotated, Any, Literal
 import numpy as np
 from annotated_types import Ge, Interval, Len, MinLen
 from mne import Covariance
+from mne.transforms import translation
 from mne_bids import BIDSPath
 from mne_bids_pipeline.typing import (
     ArbitraryContrast,
@@ -639,7 +640,7 @@ options or specifying the origin manually.
     ```
 """
 
-mf_destination: Literal["reference_run"] | FloatArrayLike = "reference_run"
+mf_destination: Literal["reference_run"] | FloatArrayLike = translation(z=0.045)
 """
 Despite all possible care to avoid movements in the MEG, the participant
 will likely slowly drift down from the Dewar or slightly shift the head
@@ -731,7 +732,7 @@ mf_mc_t_step_min: float = 0.01
 Minimum time step to use during cHPI coil amplitude estimation.
 """
 
-mf_mc_t_window: float | Literal["auto"] = "auto"
+mf_mc_t_window: float | Literal["auto"] = 10.0
 """
 The window to use during cHPI coil amplitude estimation and in cHPI filtering.
 Can be "auto" to autodetect a reasonable value or a float (in seconds).
@@ -790,13 +791,13 @@ Only used when [`use_maxwell_filter=True`][mne_bids_pipeline._config.use_maxwell
 # If you need more fancy analysis, you are already likely past this kind
 # of tips! 😇
 
-l_freq: float | None = 0.1
+l_freq: float | None = 0.1  # TODO: Get value used by Hauk
 """
 The low-frequency cut-off in the highpass filtering step.
 Keep it `None` if no highpass filtering should be applied.
 """
 
-h_freq: float | None = 60.0
+h_freq: float | None = 140.0
 """
 The high-frequency cut-off in the lowpass filtering step.
 Keep it `None` if no lowpass filtering should be applied.
@@ -816,7 +817,7 @@ lowpass filter. By default it's `'auto'` and uses default MNE
 parameters.
 """
 
-notch_freq: float | Sequence[float] | None = [50, 100, 150]
+notch_freq: float | Sequence[float] | None = [50, 100]
 """
 Notch filter frequency. More than one frequency can be supplied, e.g. to remove
 harmonics. Keep it `None` if no notch filter should be applied.
@@ -854,7 +855,7 @@ Specifies the width of each stop band. `None` uses the MNE default.
 # resample your data down to 500 Hz without preventing reliable time-frequency
 # exploration of your data.
 
-raw_resample_sfreq: float | None = 500
+raw_resample_sfreq: float | None = 1000
 """
 Specifies at which sampling frequency the data should be resampled.
 If `None`, then no resampling will be done.
@@ -1336,7 +1337,7 @@ Set to `None` to not apply an additional high-pass filter.
     us so we can discuss.
 """
 
-ica_max_iterations: int = 500
+ica_max_iterations: int = 5000
 """
 Maximum number of iterations to decompose the data into independent
 components. A low number means to finish earlier, but the consequence is
