@@ -4,7 +4,7 @@
 #SBATCH --partition=shared-cpu
 #SBATCH --output=/home/gercek/worker-logs/syntax-maxfilter-%j.out
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=64
+#SBATCH --cpus-per-task=12
 #SBATCH --mem=128GB
 
 7z x /home/gercek/gercek_li_venv.7z -o/tmp/
