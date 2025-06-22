@@ -81,7 +81,7 @@ if __name__ == "__main__":
         )
 
     args.plotpath.mkdir(parents=True, exist_ok=True)
-    plotpath = args.savepath / f"sub-{args.subject}" / procdir
+    plotpath = args.plotpath / f"sub-{args.subject}" / procdir
     plotpath.mkdir(parents=True, exist_ok=True)
     print(f"Saving plots to {plotpath}")
 
@@ -122,7 +122,7 @@ if __name__ == "__main__":
     del raw
 
     # Global parameters for different FFTs
-    fmin = 0.5
+    fmin = 0.1
     fmax = 60.0
     tmin = 0.0
     tmax = minidur
@@ -195,7 +195,7 @@ if __name__ == "__main__":
             percond_spectra_tw[fulltag] = dict(psds=psds, freqs=freqs, snrs=snrs)
     print("Done.")
     if args.save_deriv:
-        print("Saving data...")
+        print(f"Saving data to {procpath} ...")
         with open(
             procpath / f"{owbase}_allcondSNR.pkl",
             "wb",
