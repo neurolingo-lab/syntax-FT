@@ -38,10 +38,33 @@ if __name__ == "__main__":
         help="Root directory for BIDS dataset",
     )
     parser.add_argument(
-        "--savepath",
+        "--save-deriv",
+        action="store_true",
+        help="Whether the data should be stored in the BIDS derivatives directory once saved. "
+        "Outputs will be saved to the 'mne-bids-pipeline' directory under the appropriate subject "
+        "and session label, named as e.g. "
+        "`sub-XX_ses-XX_task-syntaxIM_proc-PROC_desc-[oneword/twoword]_allcondSNR.pkl",
+    )
+    parser.add_argument(
+        "--plotpath",
         type=Path,
-        default="/srv/beegfs/scratch/users/g/gercek/syntax_im/results",
-        help="Directory in which to save SNR data",
+        default="/srv/beegfs/scratch/users/g/gercek/syntax_im/results/",
+        help="Directory in which to save SNR plots, if any",
+    )
+    parser.add_argument(
+        "--snr-skip",
+        type=int,
+        default=2,
+        help="Number of frequency bins to skip on either side of a frequency bin for SNR "
+        "computation. By default 2 bin on each side.",
+    )
+    parser.add_argument(
+        "--snr-neighbors",
+        type=int,
+        default=12,
+        help="Number of neighboring frequency bins to consider when computing the signal-to-noise "
+        "ratio for a given frequency bin. This does not include the skipped bins immediately "
+        "adjacent.",
     )
     args = parser.parse_args()
 
@@ -50,14 +73,17 @@ if __name__ == "__main__":
 
     # STORAGE LOCATIONS
     derivatives_root = args.bids_root / "derivatives/mne-bids-pipeline"
+    procpath = derivatives_root / f"sub-{args.subject}/ses-{args.session}/meg/"
+    if not procpath.exists():
+        raise FileNotFoundError(
+            f"Could not find derivatives directory for subject {args.subject}, "
+            f"session {args.session}!"
+        )
 
-    args.savepath.mkdir(parents=True, exist_ok=True)
-    procpath = args.savepath / f"sub-{args.subject}" / procdir
-    procpath.mkdir(parents=True, exist_ok=True)
-    print(f"Saving data to {procpath}")
-    plotpath = procpath / "figures"
+    args.plotpath.mkdir(parents=True, exist_ok=True)
+    plotpath = args.savepath / f"sub-{args.subject}" / procdir
     plotpath.mkdir(parents=True, exist_ok=True)
-    print(f"Saving figures to {plotpath}")
+    print(f"Saving plots to {plotpath}")
 
     raw_bidspath = mnb.BIDSPath(
         subject=args.subject,
@@ -77,7 +103,11 @@ if __name__ == "__main__":
     try:
         raw = mne.io.read_raw_fif(raw_bidspath.fpath, verbose=False)
     except FileNotFoundError:
-        raw = mne.io.read_raw_fif(raw_bidspath.copy().update(split=None).fpath, verbose=False)
+        try:
+            raw = mne.io.read_raw_fif(raw_bidspath.copy().update(split=None).fpath, verbose=False)
+        except FileNotFoundError:
+            raise FileNotFoundError(f"Could not find the file {raw_bidspath.fpath}! Please check.")
+
     events, evdict = mne.events_from_annotations(raw)
     keepev = {k: v for k, v in evdict.items() if k.split("/")[0] == "MINIBLOCK"}
     print("Raw sampled at ", raw.info["sfreq"])
@@ -96,10 +126,8 @@ if __name__ == "__main__":
     fmax = 60.0
     tmin = 0.0
     tmax = minidur
-    snr_neighbor_freqs = 0.8  # Hz
-    snr_skip_freqs = 0.1  # Hz total either side
-    snr_skip_neighbor_J = int((snr_skip_freqs / 2) / (1 / (tmax - tmin)))
-    snr_neighbor_K = int((snr_neighbor_freqs / 2) / (1 / (tmax - tmin)) - snr_skip_neighbor_J)
+    snr_skip_neighbor_J = args.snr_skip
+    snr_neighbor_K = args.snr_neighbors
     psd_kwargs = dict(
         method="welch",
         n_fft=int(epochs.info["sfreq"] * (tmax - tmin)),
@@ -113,8 +141,8 @@ if __name__ == "__main__":
     )
 
     print("Computing SNR for oneword+twoword, per condition and all conditions...")
-    owbase = f"ses-{args.session}_task-syntaxIM_spectraSNR_oneword"
-    twbase = f"ses-{args.session}_task-syntaxIM_spectraSNR_twoword"
+    owbase = f"sub-{args.subject}_ses-{args.session}_task-syntaxIM_desc-oneword"
+    twbase = f"sub-{args.subject}_ses-{args.session}_task-syntaxIM_desc-twoword"
     allcond_spectra_ow = {}
     allcond_spectra_tw = {}
     percond_spectra_ow = {}
@@ -165,29 +193,31 @@ if __name__ == "__main__":
                 noise_skip_neighbor_freqs=snr_skip_neighbor_J,
             )
             percond_spectra_tw[fulltag] = dict(psds=psds, freqs=freqs, snrs=snrs)
-    print("Done. Saving data...")
-    with open(
-        procpath / f"{owbase}_allcond.pkl",
-        "wb",
-    ) as f:
-        pickle.dump(allcond_spectra_ow, f)
-    with open(
-        procpath / f"{twbase}_allcond.pkl",
-        "wb",
-    ) as f:
-        pickle.dump(allcond_spectra_tw, f)
-    with open(
-        procpath / f"{owbase}_percond.pkl",
-        "wb",
-    ) as f:
-        pickle.dump(percond_spectra_ow, f)
-    with open(
-        procpath / f"{twbase}_percond.pkl",
-        "wb",
-    ) as f:
-        pickle.dump(percond_spectra_tw, f)
+    print("Done.")
+    if args.save_deriv:
+        print("Saving data...")
+        with open(
+            procpath / f"{owbase}_allcondSNR.pkl",
+            "wb",
+        ) as f:
+            pickle.dump(allcond_spectra_ow, f)
+        with open(
+            procpath / f"{twbase}_allcondSNR.pkl",
+            "wb",
+        ) as f:
+            pickle.dump(allcond_spectra_tw, f)
+        with open(
+            procpath / f"{owbase}_percondSNR.pkl",
+            "wb",
+        ) as f:
+            pickle.dump(percond_spectra_ow, f)
+        with open(
+            procpath / f"{twbase}_percondSNR.pkl",
+            "wb",
+        ) as f:
+            pickle.dump(percond_spectra_tw, f)
 
-    print("Done.\n")
+        print("Done.\n")
 
     print("Plotting SNR and SNR topos for oneword+twoword, all conditions combined...")
     plot_freqs = (1, 15)
