@@ -61,6 +61,12 @@ if __name__ == "__main__":
         help="Session ID",
     )
     parser.add_argument(
+        "--task",
+        type=str,
+        default="syntaxIM",
+        help="Task name, should match the task name in the BIDS dataset.",
+    )
+    parser.add_argument(
         "--bids_root",
         type=Path,
         default="/srv/beegfs/scratch/users/g/gercek/syntax_im/syntax_dataset",
@@ -132,7 +138,7 @@ if __name__ == "__main__":
     raw_bidspath = mnb.BIDSPath(
         subject=args.subject,
         session=args.session,
-        task="syntaxIM",
+        task=args.task,
         processing=processing,
         split="01" if processing in ("sss", "filt", None) else None,
         datatype="meg",
@@ -144,13 +150,43 @@ if __name__ == "__main__":
 
     trans_bidspath = raw_bidspath.copy().update(split=None, processing=None, suffix="trans")
     fs_path = derivatives_root.parent / "freesurfer" / f"sub-{args.subject}"
-    src_path = fs_path / f"bem/sub-{args.subject}-oct6-src.fif"
-    bem_path = fs_path / f"bem/sub-{args.subject}-5120-bem-sol.fif"
 
-    trans = mne.read_trans(trans_bidspath.fpath)
+    src_path = fs_root / f"{fs_sub}/bem/"
+    bem_path = fs_root / f"{fs_sub}/bem/"
+    if args.src_spacing is not None:
+        src_path = list(src_path.glob(f"sub*-{args.src_spacing}-src.fif"))
+        if not src_path:
+            raise FileNotFoundError(f"No source file with spacing {args.src_spacing} found!")
+        if len(src_path) > 1:
+            raise ValueError(
+                f"More than one source file with spacing {args.src_spacing} found!\n"
+                f"Found : {src_path}"
+            )
+        src_path = src_path[0]
+    elif not list(src_path.glob("sub*-src.fif")):
+        raise FileNotFoundError("No source file found!")
+    elif len(list(src_path.glob("sub*-src.fif"))) > 1:
+        raise ValueError(
+            f"Multiple source files found!\n Found: {src_path}\n Please choose a"
+            " spacing to use via `--src-spacing`."
+        )
+    else:
+        src_path = list(src_path.glob("sub*-src.fif"))[0]
+    
+    if not bem_path.glob("sub*-bem-sol.fif"):
+        raise FileNotFoundError("No BEM solution file found!")
+    elif len(list(bem_path.glob("sub*-bem-sol.fif"))) > 1:
+        raise NotImplementedError(
+            f"Multiple BEM solution files found!\n Found: {bem_path}\n I will eventually work out"
+            " how to match bem numbers to `--src-spacing`."
+        )
+    else:
+        bem_path = list(bem_path.glob("sub*-bem-sol.fif"))[0]
+
     src = mne.read_source_spaces(src_path)
     bem = mne.read_bem_solution(bem_path)
 
+    trans = mne.read_trans(trans_bidspath.fpath)
     fwd_bidspath = trans_bidspath.copy().update(suffix="fwd")
 
     raw = mne.io.read_raw_fif(raw_bidspath.fpath)  # ima.miniblock_events(raw)
@@ -191,30 +227,15 @@ if __name__ == "__main__":
         mne.minimum_norm.write_inverse_operator(inv_bidspath.fpath, inv, overwrite=True)
 
     if args.morph_fsaverage:
-        src_bidspath = fs_root / f"{fs_sub}/bem/"
-        if args.src_spacing is not None:
-            src_bidspath = src_bidspath.mtach(f"*-{args.src_spacing}-src.fif")
-            if not src_bidspath:
-                raise FileNotFoundError(f"No source file with spacing {args.src_spacing} found!")
-            if len(src_bidspath) > 1:
-                raise ValueError(
-                    f"More than one source file with spacing {args.src_spacing} found!\n"
-                    f"Found : {src_bidspath}"
-                )
-        elif not src_bidspath.match("*-src.fif"):
-            raise FileNotFoundError("No source file found!")
-        elif len(src_bidspath.match("*-src.fif")) > 1:
-            raise ValueError(
-                f"Multiple source files found!\n Found: {src_bidspath}\n Please choose a"
-                " spacing to use via `--src-spacing`."
-            )
-
-        src = mne.read_source_spaces(src_bidspath[0])
+        fsavg_src = mne.read_source_spaces(
+            fs_root / "fsaverage/bem/fsaverage-ico-5-src.fif"
+        )
         morph = mne.compute_source_morph(
-            src,
+            fwd["src"],
             subject_from=fs_sub,
             subject_to="fsaverage",
             subjects_dir=fs_root,
+            src_to=fsavg_src
         )
         morphstr = "morphFSAVG"
     else:
@@ -245,10 +266,10 @@ if __name__ == "__main__":
         inverse_operator=inv,
         lambda2=1 / 9.0,
         method="MNE",
-        n_fft=int(epochs.info["sfreq"] * (tmax - tmin)),
-        overlap=0.0,
-        tmin=tmin,
-        tmax=tmax,
+        # n_fft=int(epochs.info["sfreq"] * (tmax - tmin)),  # Apparently these are not in source epochs
+        # overlap=0.0,
+        # tmin=tmin,
+        # tmax=tmax,
         fmin=fmin,
         fmax=fmax,
         nave=1,
@@ -258,8 +279,8 @@ if __name__ == "__main__":
     )
 
     print("Computing SNR for oneword+twoword, per condition and all conditions...")
-    owbase = f"sub-{args.subject}_ses-{args.session}_task-syntaxIM_desc-{morphstr}oneword"
-    twbase = f"sub-{args.subject}_ses-{args.session}_task-syntaxIM_desc-{morphstr}twoword"
+    owbase = f"sub-{args.subject}_ses-{args.session}_task-{args.task}_desc-{morphstr}oneword"
+    twbase = f"sub-{args.subject}_ses-{args.session}_task-{args.task}_desc-{morphstr}twoword"
     allcond_spectra_ow = {}
     allcond_spectra_tw = {}
     percond_spectra_ow = {}

@@ -1,8 +1,8 @@
 #!/bin/sh
-#SBATCH --job-name=syntax-sourcemodel
+#SBATCH --job-name=syntax-sensSNR
 #SBATCH --time=1:00:00
 #SBATCH --partition=shared-cpu
-#SBATCH --output=/home/gercek/worker-logs/syntax-sensorSNR-%j.out
+#SBATCH --output=/home/gercek/worker-logs/syntax-sensSNR-%j.out
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=64GB

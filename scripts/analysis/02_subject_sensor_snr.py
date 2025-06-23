@@ -32,6 +32,12 @@ if __name__ == "__main__":
         help="Session ID",
     )
     parser.add_argument(
+        "--task",
+        type=str,
+        default="syntaxIM",
+        help="Task name, should match the BIDS task name.",
+    )
+    parser.add_argument(
         "--bids_root",
         type=Path,
         default="/srv/beegfs/scratch/users/g/gercek/syntax_im/syntax_dataset",
@@ -88,7 +94,7 @@ if __name__ == "__main__":
     raw_bidspath = mnb.BIDSPath(
         subject=args.subject,
         session=args.session,
-        task="syntaxIM",
+        task=args.task,
         processing=processing,
         split="01" if processing in ("sss", "filt", None) else None,
         datatype="meg",
@@ -141,8 +147,8 @@ if __name__ == "__main__":
     )
 
     print("Computing SNR for oneword+twoword, per condition and all conditions...")
-    owbase = f"sub-{args.subject}_ses-{args.session}_task-syntaxIM_desc-oneword"
-    twbase = f"sub-{args.subject}_ses-{args.session}_task-syntaxIM_desc-twoword"
+    owbase = f"sub-{args.subject}_ses-{args.session}_task-{args.task}_desc-oneword"
+    twbase = f"sub-{args.subject}_ses-{args.session}_task-{args.task}_desc-twoword"
     allcond_spectra_ow = {}
     allcond_spectra_tw = {}
     percond_spectra_ow = {}
@@ -268,13 +274,13 @@ if __name__ == "__main__":
             topofig.suptitle(titlestr + ": All conditions", color="w")
             topofig.savefig(
                 plotpath
-                / f"sub-{args.subject}_ses-{args.session}_task-syntaxIM_{name}_allconds_{tag}_snrtopo.pdf"
+                / f"sub-{args.subject}_ses-{args.session}_task-{args.task}_{name}_allconds_{tag}_snrtopo.pdf"
             )
             plt.close(topofig)
         axes[1, 0].set_ylim([-0.5, 4.0])
         fig.savefig(
             plotpath
-            / f"sub-{args.subject}_ses-{args.session}_task-syntaxIM_{name}_allconds_snr.pdf"
+            / f"sub-{args.subject}_ses-{args.session}_task-{args.task}_{name}_allconds_snr.pdf"
         )
         plt.close(fig)
     print("Done.")
@@ -327,7 +333,7 @@ if __name__ == "__main__":
             topofig.suptitle(f"{name}: {freq} {cond} trials SNR", color="w")
             topofig.savefig(
                 plotpath
-                / f"sub-{args.subject}_ses-{args.session}_task-syntaxIM_{name}_{cond}_{freq}_snrtopo.pdf"
+                / f"sub-{args.subject}_ses-{args.session}_task-{args.task}_{name}_{cond}_{freq}_snrtopo.pdf"
             )
             plt.close(topofig)
         axes[1, 0].set_ylim([-0.5, 4.0])
@@ -335,6 +341,6 @@ if __name__ == "__main__":
         fig.tight_layout()
         fig.savefig(
             plotpath
-            / f"sub-{args.subject}_ses-{args.session}_task-syntaxIM_{name}_percond_snr.pdf"
+            / f"sub-{args.subject}_ses-{args.session}_task-{args.task}_{name}_percond_snr.pdf"
         )
     print("Done.")
