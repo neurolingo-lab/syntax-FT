@@ -10,4 +10,18 @@
 module load FreeSurfer/7.3.2-centos7_x86_64
 7z x /home/gercek/gercek_li_venv.7z -o/tmp/
 source /tmp/gercek_li_venv/bin/activate
-mne_bids_pipeline --config $HOME/Projects/language-intermodulation/cluster_pipeline/mnebids_pipeline_config.py  --subject $PIPELINE_SUB --session 01 --steps sensor/make_evoked,sensor/make_cov,source/make_bem_surfaces,source/make_bem_solution,source/setup_source_space --task $PIPELINE_TASK
+mne_bids_pipeline --config \
+    $HOME/Projects/language-intermodulation/cluster_pipeline/mnebids_pipeline_config.py \
+    --subject $PIPELINE_SUB \
+    --session 01 \
+    --task $PIPELINE_TASK \
+    --steps sensor/make_evoked,sensor/make_cov,source/make_bem_surfaces,source/make_bem_solution,source/setup_source_space \
+
+# The next steps in the pipline REQUIRE a rendering environment + display
+# As such we use the xvfb-run command to initialize a virtual display
+xvfb-run mne_bids_pipeline --config \
+    $HOME/Projects/language-intermodulation/cluster_pipeline/mnebids_pipeline_config.py \
+    --subject $PIPELINE_SUB \
+    --session 01 \
+    --task $PIPELINE_TASK \
+    --steps source/make_forward,source/make_inverse
