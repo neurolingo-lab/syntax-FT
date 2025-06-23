@@ -123,7 +123,7 @@ if __name__ == "__main__":
 
     # Global parameters for different FFTs
     fmin = 0.1
-    fmax = 60.0
+    fmax = 140.0
     tmin = 0.0
     tmax = minidur
     snr_skip_neighbor_J = args.snr_skip
