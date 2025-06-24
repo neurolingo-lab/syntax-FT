@@ -109,7 +109,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--snr-neighbors",
         type=int,
-        default=12,
+        default=9,
         help="Number of neighboring frequency bins to consider when computing the signal-to-noise "
         "ratio for a given frequency bin. This does not include the skipped bins immediately "
         "adjacent.",

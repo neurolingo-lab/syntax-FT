@@ -1,0 +1,94 @@
+#!/usr/bin/python3
+import os
+from pathlib import Path
+
+
+def submit_job_get_id(batchfile, depjobs, env=None, dryrun=False):
+    """
+    Submit a batch file to the slurm queue and return the job id. Can be run in "dry run" mode to
+    just print the command that would be run.
+
+    Parameters
+    ----------
+    batchfile : Path
+        Path to the batch file to submit
+    depjobs : list | None
+        List of dependency jobs to wait for before running this job
+    dryrun : bool, optional
+        Run the command in dry mode, not submitting any jobs, by default False
+
+    Returns
+    -------
+    str
+        Job ID for the submitted job
+    """
+    if depjobs is not None:
+        print("Dependency jobs are", depjobs)
+        depstr = ",".join(depjobs)
+        cmd = f"sbatch --dependency=afterok:{depstr} --kill-on-invalid-dep=yes"
+    else:
+        cmd = "sbatch"
+    if env is not None:
+        envstr = "export " + " && export ".join(env)
+        cmd = envstr + f" && {cmd} --export=ALL {batchfile}"
+    else:
+        cmd = envstr + f" && {cmd} {batchfile}"
+    if dryrun:
+        print(f"Would submit script {batchfile.name} with command: {cmd}")
+        if depjobs is not None:
+            maxjobid = max([int(j) for j in depjobs])
+            return str(maxjobid + 1)
+        else:
+            return "1"
+    else:
+        print(f"Submitting script {batchfile.name} with command: {cmd}")
+        res = os.popen(cmd).read()
+        jobid = res.split()[-1]
+        print(f"Script {batchfile.name} submitted with id: {jobid}")
+        return jobid
+
+
+def resolve_paths(step):
+    return [s.resolve() for s in step]
+
+
+if __name__ == "__main__":
+    import argparse
+    print([k for k in os.environ.keys() if k.find("PIPELINE") != -1])
+    parser = argparse.ArgumentParser(
+        description="Submit any number of job files to the SLURM queue with "
+        "multiple logical steps. Jobs within a step will be run together at once, while ones in "
+        "subsequent steps will wait on all of the jobs from the previous step to successfully "
+        "complete before running. Batch files must specify all necessary resources and run times, "
+        "this script only manages the --dependency flag for job submission.\n\n "
+        "Additionally, environment variables for the scripts can be specified to export to the "
+        "submitted jobs via the SLURM --export flag."
+    )
+    parser.add_argument(
+        "-s",
+        "--step",
+        type=Path,
+        nargs="+",
+        action="append",
+        help="Path to the batch file(s) to submit. Multiple files following one flag will be run "
+        "in parallel",
+    )
+    parser.add_argument(
+        "-e",
+        "--export",
+        nargs=2,
+        action="append",
+        help="Environment variable to export to jobs. Each flag should be a key-value pair.",
+    )
+    parser.add_argument(
+        "--dryrun",
+        action="store_true",
+        help="Run in dry mode, not submitting any jobs but "
+        "printing the commands that would be run with stimulated job numbers",
+    )
+    args = parser.parse_args()
+    resolved = [resolve_paths(step) for step in args.step]
+    env = ["=".join(e) for e in args.export] if args.export is not None else None
+    depjobs = None
+    for step in resolved:
+        depjobs = [submit_job_get_id(batchfile, depjobs, env, args.dryrun) for batchfile in step]
