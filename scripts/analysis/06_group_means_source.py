@@ -6,6 +6,8 @@ from pathlib import Path
 import numpy as np
 from tqdm import tqdm
 
+import intermodulation.analysis as ima
+
 if __name__ == "__main__":
     from argparse import ArgumentParser
 
@@ -97,7 +99,12 @@ if __name__ == "__main__":
                     template_stc = filedata[tasktag]["stc"]
             grand_mean_psd = np.average(psds_allcond[task][tasktag], axis=0)
             psds_allcond[task][tasktag] = []
-            grand_mean_snr = np.average(snrs_allcond[task][tasktag], axis=0)
+            # grand_mean_snr = np.average(snrs_allcond[task][tasktag], axis=0)
+            grand_mean_snr = ima.snr_spectrum(
+                grand_mean_psd,
+                noise_n_neighbor_freqs=9,
+                noise_skip_neighbor_freqs=2,
+            )
             snrs_allcond[task][tasktag] = []
 
             np.save(

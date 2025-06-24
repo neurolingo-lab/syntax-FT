@@ -73,6 +73,8 @@ if __name__ == "__main__":
         view_layout="horizontal",
     )
 
+    picked_points = {"lh": [21571, 156056], "rh": [114112, 97289], "vol": []}
+
     title_taskpart = ("One-word with", "Two-word with")
     title_tagpart = {
         "ONEWORD": {"F1": "6 Hz stimulus", "F2": "7 Hz stimulus"},
@@ -105,6 +107,8 @@ if __name__ == "__main__":
             stc = mne.read_source_estimate(
                 stc_root / f"allcond/{task.lower()}/grand_mean_snr_{tag}-lh.stc"
             )
+            data = stc.data.copy()
+
             if oneword:
                 plotfreqs = (tag_f[0],) if tag == "F1" else (tag_f[1],)
             else:
@@ -113,12 +117,14 @@ if __name__ == "__main__":
                 curr_title = (
                     title_taskpart[int(not oneword)] + title_tagpart[task][tag] + title_allcond
                 )
+                stc.data = data
                 brain = stc.plot(
                     initial_time=f * samprate_correction,
                     clim=clim,
                     title=curr_title,
                     **brain_kwargs,
                 )
+                brain.picked_points = picked_points
                 brain.toggle_interface()
                 brain.save_image(allcond_taskpath / f"brain_grand_mean_snr_{tag}_{int(f):d}Hz.png")
                 brain.close()
@@ -127,18 +133,21 @@ if __name__ == "__main__":
                 stc = mne.read_source_estimate(
                     stc_root / f"percond/{task.lower()}/grand_mean_snr_{cond}-{tag}-lh.stc"
                 )
+                data = stc.data.copy()
                 for f in plotfreqs:
                     curr_title = (
                         title_taskpart[int(not oneword)]
                         + title_tagpart[task][tag]
                         + title_condpart[task][cond]
                     )
+                    stc.data = data
                     brain = stc.plot(
                         initial_time=f * samprate_correction,
                         clim=clim,
                         title=curr_title,
                         **brain_kwargs,
                     )
+                    brain.picked_points = picked_points
                     brain.toggle_interface()
                     brain.save_image(
                         percond_taskpath / f"brain_grand_mean_snr_{cond}-{tag}_{int(f):d}Hz.png"
