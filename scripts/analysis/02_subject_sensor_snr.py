@@ -1,48 +1,14 @@
 import pickle
-from pathlib import Path
 
-import matplotlib.pyplot as plt
 import mne
 import mne_bids as mnb
 
 import intermodulation.analysis as ima
-import intermodulation.plot as imp
-from intermodulation import freqtag_spec
+from intermodulation import analysis_spec, freqtag_spec
 
 if __name__ == "__main__":
-    from argparse import ArgumentParser
+    parser = analysis_spec.make_parser()
 
-    parser = ArgumentParser()
-    parser.add_argument(
-        "--proc",
-        type=str,
-        default="raw",
-        help="Processing type: raw, sss, filt, or clean",
-    )
-    parser.add_argument(
-        "--subject",
-        type=str,
-        default="02",
-        help="Subject ID",
-    )
-    parser.add_argument(
-        "--session",
-        type=str,
-        default="01",
-        help="Session ID",
-    )
-    parser.add_argument(
-        "--task",
-        type=str,
-        default="syntaxIM",
-        help="Task name, should match the BIDS task name.",
-    )
-    parser.add_argument(
-        "--bids_root",
-        type=Path,
-        default="/srv/beegfs/scratch/users/g/gercek/syntax_im/syntax_dataset",
-        help="Root directory for BIDS dataset",
-    )
     parser.add_argument(
         "--save-deriv",
         action="store_true",
@@ -50,12 +16,6 @@ if __name__ == "__main__":
         "Outputs will be saved to the 'mne-bids-pipeline' directory under the appropriate subject "
         "and session label, named as e.g. "
         "`sub-XX_ses-XX_task-syntaxIM_proc-PROC_desc-[oneword/twoword]_allcondSNR.pkl",
-    )
-    parser.add_argument(
-        "--plotpath",
-        type=Path,
-        default="/srv/beegfs/scratch/users/g/gercek/syntax_im/results/",
-        help="Directory in which to save SNR plots, if any",
     )
     parser.add_argument(
         "--snr-skip",
@@ -89,7 +49,6 @@ if __name__ == "__main__":
     args.plotpath.mkdir(parents=True, exist_ok=True)
     plotpath = args.plotpath / f"sub-{args.subject}" / procdir
     plotpath.mkdir(parents=True, exist_ok=True)
-    print(f"Saving plots to {plotpath}")
 
     raw_bidspath = mnb.BIDSPath(
         subject=args.subject,
@@ -127,32 +86,30 @@ if __name__ == "__main__":
     epochs.load_data()
     del raw
 
-    # Global parameters for different FFTs
-    fmin = 0.1
-    fmax = 140.0
+    # Global parameters for different FFTs, using the common set from analysis spec
     tmin = 0.0
     tmax = minidur
     snr_skip_neighbor_J = args.snr_skip
     snr_neighbor_K = args.snr_neighbors
-    psd_kwargs = dict(
-        method="welch",
+
+    psd_kwargs = analysis_spec.sensor_fft_pars.copy()
+    psd_kwargs.update(
         n_fft=int(epochs.info["sfreq"] * (tmax - tmin)),
-        n_overlap=0,
-        n_per_seg=None,
         tmin=tmin,
         tmax=tmax,
-        fmin=fmin,
-        fmax=fmax,
-        window="boxcar",
     )
 
     print("Computing SNR for oneword+twoword, per condition and all conditions...")
-    owbase = f"sub-{args.subject}_ses-{args.session}_task-{args.task}_desc-oneword"
-    twbase = f"sub-{args.subject}_ses-{args.session}_task-{args.task}_desc-twoword"
-    allcond_spectra_ow = {}
-    allcond_spectra_tw = {}
-    percond_spectra_ow = {}
-    percond_spectra_tw = {}
+    owbase = (
+        f"sub-{args.subject}_ses-{args.session}_task-{args.task}_proc-{args.proc}_desc-oneword"
+    )
+    twbase = (
+        f"sub-{args.subject}_ses-{args.session}_task-{args.task}_proc-{args.proc}_desc-twoword"
+    )
+    allcond_spectra_ow = {"samp_epoch": epochs[0]}
+    allcond_spectra_tw = {"samp_epoch": epochs[0]}
+    percond_spectra_ow = {"samp_epoch": epochs[0]}
+    percond_spectra_tw = {"samp_epoch": epochs[0]}
     for tag in ["F1", "F2"]:
         twtag = "F1LEFT" if tag == "F1" else "F1RIGHT"
         spectrum = epochs[f"MINIBLOCK/ONEWORD/{tag}"].compute_psd(
@@ -224,123 +181,3 @@ if __name__ == "__main__":
             pickle.dump(percond_spectra_tw, f)
 
         print("Done.\n")
-
-    print("Plotting SNR and SNR topos for oneword+twoword, all conditions combined...")
-    plot_freqs = (1, 15)
-    topofig_kw = dict(figsize=(8, 8), dpi=200)
-
-    for name, spectra in {"oneword": allcond_spectra_ow, "twoword": allcond_spectra_tw}.items():
-        fig, axes = plt.subplots(2, 2, figsize=(15, 11), sharex=True, sharey="row")
-        for i, (tag, data) in enumerate(spectra.items()):
-            ax = axes[:, i]
-            if name == "twoword":
-                # Vertical lines at tag frequencies and f2-f1, f1+f2 IMs
-                tagfreq = [
-                    7.05882353 - 6.0,
-                    6.0,
-                    7.05882353,
-                    2 * 6,
-                    6 + 7.05882353,
-                    2 * 7.05882353,
-                ]
-                titlestr = f"{tag} Two-Word SNR"
-            else:
-                tagfreq = {"F1": 6.0, "F2": 7.05882353}[tag]
-                titlestr = f"{tag} One-Word SNR"
-            imp.plot_snr(
-                data["psds"],
-                data["snrs"],
-                data["freqs"],
-                fmin=plot_freqs[0],
-                fmax=plot_freqs[1],
-                fig=fig,
-                axes=ax,
-                titleannot=titlestr,
-                tagfreq=tagfreq,
-                plotpsd=True,
-            )
-            # Topomap plots
-            topofig = imp.snr_topo(
-                data["snrs"].mean(axis=0),
-                epochs.pick("data", exclude="bads"),
-                data["freqs"],
-                fmin=plot_freqs[0],
-                fmax=plot_freqs[1],
-                ymin=0.0,
-                ymax=8.0,
-                vlines=[tagfreq] if name == "oneword" else tagfreq,
-                fig_kwargs=topofig_kw,
-            )
-            topofig.suptitle(titlestr + ": All conditions", color="w")
-            topofig.savefig(
-                plotpath
-                / f"sub-{args.subject}_ses-{args.session}_task-{args.task}_{name}_allconds_{tag}_snrtopo.pdf"
-            )
-            plt.close(topofig)
-        axes[1, 0].set_ylim([-0.5, 4.0])
-        fig.savefig(
-            plotpath
-            / f"sub-{args.subject}_ses-{args.session}_task-{args.task}_{name}_allconds_snr.pdf"
-        )
-        plt.close(fig)
-    print("Done.")
-
-    print("Plotting SNR and SNR topos for oneword+twoword, per condition...")
-    for name, spectra in {"oneword": percond_spectra_ow, "twoword": percond_spectra_tw}.items():
-        ncond = len(spectra.keys())
-        fig, axes = plt.subplots(2, ncond, figsize=(ncond * 5, 11), sharex=True, sharey="row")
-        for i, (tag, data) in enumerate(spectra.items()):
-            cond = tag.split("/")[1]
-            freq = tag.split("/")[-1]
-            if name == "twoword":
-                # Vertical lines at tag frequencies and f2-f1, f1+f2 IMs
-                tagfreq = [
-                    7.05882353 - 6.0,
-                    6.0,
-                    7.05882353,
-                    2 * 6,
-                    6 + 7.05882353,
-                    2 * 7.05882353,
-                ]
-                titlestr = f"{cond} SNR"
-            else:
-                tagfreq = {"F1": 6.0, "F2": 7.05882353}[freq]
-                titlestr = f"{cond} SNR"
-            ax = axes[:, i]
-            imp.plot_snr(
-                data["psds"],
-                data["snrs"],
-                data["freqs"],
-                fmin=plot_freqs[0],
-                fmax=plot_freqs[1],
-                fig=fig,
-                axes=ax,
-                titleannot=titlestr,
-                tagfreq=tagfreq,
-                plotpsd=True,
-            )
-            topofig = imp.snr_topo(
-                data["snrs"].mean(axis=0),
-                epochs.pick("data", exclude="bads"),
-                data["freqs"],
-                fmin=plot_freqs[0],
-                fmax=plot_freqs[1],
-                ymin=0.0,
-                ymax=8.0,
-                vlines=[tagfreq] if name == "oneword" else tagfreq,
-                fig_kwargs=topofig_kw,
-            )
-            topofig.suptitle(f"{name}: {freq} {cond} trials SNR", color="w")
-            topofig.savefig(
-                plotpath
-                / f"sub-{args.subject}_ses-{args.session}_task-{args.task}_{name}_{cond}_{freq}_snrtopo.pdf"
-            )
-            plt.close(topofig)
-        axes[1, 0].set_ylim([-0.5, 4.0])
-        fig.suptitle(f"{name} SNR per condition", fontsize=16)
-        fig.tight_layout()
-        fig.savefig(
-            plotpath
-            / f"sub-{args.subject}_ses-{args.session}_task-{args.task}_{name}_percond_snr.pdf"
-        )
-    print("Done.")

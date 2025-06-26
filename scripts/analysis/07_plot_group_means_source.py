@@ -3,6 +3,8 @@ from pathlib import Path
 import mne
 import numpy as np
 
+from intermodulation.analysis_spec import pick_points
+
 if __name__ == "__main__":
     from argparse import ArgumentParser
 
@@ -59,7 +61,9 @@ if __name__ == "__main__":
     tw_conds = ("PHRASE", "NONPHRASE", "NONWORD")
 
     ow_clim = dict(kind="value", lims=np.array((1.09, 2, 4)))
+    percond_ow_clim = dict(kind="value", lims=np.array((1.5, 2.5, 3)))
     tw_clim = dict(kind="value", lims=np.array((1.09, 2, 4)))
+    percond_tw_clim = dict(kind="value", lims=np.array((1.1, 2.5, 3)))
 
     brain_kwargs = dict(
         hemi="split",
@@ -96,6 +100,7 @@ if __name__ == "__main__":
     for task in tasks:
         oneword = True if task == "ONEWORD" else False
         clim = ow_clim if oneword else tw_clim
+        percond_clim = percond_ow_clim if oneword else percond_tw_clim
         tasktags = ow_tags if oneword else tw_tags
 
         allcond_taskpath = savepath / f"allcond/{task.lower()}"
@@ -124,7 +129,7 @@ if __name__ == "__main__":
                     title=curr_title,
                     **brain_kwargs,
                 )
-                brain.picked_points = picked_points
+                pick_points(brain, picked_points)
                 brain.toggle_interface()
                 brain.save_image(allcond_taskpath / f"brain_grand_mean_snr_{tag}_{int(f):d}Hz.png")
                 brain.close()
@@ -143,11 +148,11 @@ if __name__ == "__main__":
                     stc.data = data
                     brain = stc.plot(
                         initial_time=f * samprate_correction,
-                        clim=clim,
+                        clim=percond_clim,
                         title=curr_title,
                         **brain_kwargs,
                     )
-                    brain.picked_points = picked_points
+                    pick_points(brain, picked_points)
                     brain.toggle_interface()
                     brain.save_image(
                         percond_taskpath / f"brain_grand_mean_snr_{cond}-{tag}_{int(f):d}Hz.png"
