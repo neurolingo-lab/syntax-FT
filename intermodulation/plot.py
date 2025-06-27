@@ -209,10 +209,18 @@ def plot_snr(
         np.flatnonzero(np.floor(freqs) >= fmin)[0], np.flatnonzero(np.ceil(freqs) <= fmax)[-1]
     )
     axidx = 0
+
+    if snrs.ndim == 2:
+        meanaxis = (0,)
+    elif snrs.ndim == 3:
+        meanaxis = (0, 1)
+    else:
+        raise ValueError("psds must be 2D or 3D array.")
+
     if plotpsd:
         psds_plot = 10 * np.log10(psds)
-        psds_mean = psds_plot.mean(axis=(0, 1))[freq_range]
-        psds_std = psds_plot.std(axis=(0, 1))[freq_range]
+        psds_mean = psds_plot.mean(axis=meanaxis)[freq_range]
+        psds_std = psds_plot.std(axis=meanaxis)[freq_range]
         axes[axidx].plot(freqs[freq_range], psds_mean, color="b")
         axes[axidx].fill_between(
             freqs[freq_range], psds_mean - psds_std, psds_mean + psds_std, color="b", alpha=0.2
@@ -221,8 +229,8 @@ def plot_snr(
         axidx += 1
 
     # SNR spectrum
-    snr_mean = snrs.mean(axis=(0, 1))[freq_range]
-    snr_std = snrs.std(axis=(0, 1))[freq_range]
+    snr_mean = snrs.mean(axis=meanaxis)[freq_range]
+    snr_std = snrs.std(axis=meanaxis)[freq_range]
 
     axes[axidx].plot(freqs[freq_range], snr_mean, color="r")
     axes[axidx].fill_between(

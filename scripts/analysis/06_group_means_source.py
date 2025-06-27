@@ -84,17 +84,17 @@ if __name__ == "__main__":
             # grand_mean_snr = np.average(snrs_allcond[task][tasktag], axis=0)
             grand_mean_snr = ima.snr_spectrum(
                 grand_mean_psd,
-                noise_n_neighbor_freqs=analysis_spec.noise_n_nieghbor_freqs,
+                noise_n_neighbor_freqs=analysis_spec.noise_n_neighbor_freqs,
                 noise_skip_neighbor_freqs=analysis_spec.noise_skip_neighbor_freqs,
             )
             snrs_allcond[task][tasktag] = []
 
             np.save(
-                allcond_path_task / f"grand_mean_psd_{tasktag}.npy",
+                allcond_path_task / f"source_grand_mean_psd_{tasktag}.npy",
                 grand_mean_psd,
             )
             np.save(
-                allcond_path_task / f"grand_mean_snr_{tasktag}.npy",
+                allcond_path_task / f"source_grand_mean_snr_{tasktag}.npy",
                 grand_mean_snr,
             )
 
@@ -134,7 +134,7 @@ if __name__ == "__main__":
                     # grand_mean_snr = np.average(snrs_percond[task][cond_label], axis=0)
                     grand_mean_snr = ima.snr_spectrum(
                         grand_mean_psd,
-                        noise_n_neighbor_freqs=analysis_spec.noise_n_nieghbor_freqs,
+                        noise_n_neighbor_freqs=analysis_spec.noise_n_neighbor_freqs,
                         noise_skip_neighbor_freqs=analysis_spec.noise_skip_neighbor_freqs,
                     )
                     snrs_percond[task][cond_label] = []
@@ -152,7 +152,7 @@ if __name__ == "__main__":
                     mean_psd_stc = template_stc.copy()
                     mean_psd_stc.data = np.nan_to_num(grand_mean_psd)
                     mean_psd_stc.save(
-                        percond_path_task / f"grand_mean_psd_{cond_label}",
+                        percond_path_task / f"source_grand_mean_psd_{cond_label}",
                         ftype="stc",
                         overwrite=True,
                         verbose="error",
@@ -161,7 +161,7 @@ if __name__ == "__main__":
                     mean_snr_stc = template_stc.copy()
                     mean_snr_stc.data = np.nan_to_num(grand_mean_snr)
                     mean_snr_stc.save(
-                        percond_path_task / f"grand_mean_snr_{cond_label}",
+                        percond_path_task / f"source_grand_mean_snr_{cond_label}",
                         ftype="stc",
                         overwrite=True,
                         verbose="error",

@@ -8,8 +8,7 @@ from intermodulation.analysis_spec import make_parser, pick_points
 if __name__ == "__main__":
     parser = make_parser(group_level=True, plots=True)
     parser.description = (
-        "Pipeline script to compute source space signal-to-noise data "
-        "for individual subjects in the frequency spectrum."
+        "Pipeline script to plot source space signal-to-noise data averaged across all subjects."
     )
     parser.add_argument(
         "--results-dir",

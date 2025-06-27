@@ -66,7 +66,7 @@ if __name__ == "__main__":
     tmin = 0.0
     tmax = minidur
     snr_skip_neighbor_J = analysis_spec.noise_skip_neighbor_freqs
-    snr_neighbor_K = analysis_spec.noise_n_nieghbor_freqs
+    snr_neighbor_K = analysis_spec.noise_n_neighbor_freqs
 
     psd_kwargs = analysis_spec.sensor_fft_pars.copy()
     psd_kwargs.update(

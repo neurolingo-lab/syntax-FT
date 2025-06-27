@@ -14,7 +14,12 @@ if __name__ == "__main__":
         "Pipeline script to compute source space signal-to-noise data "
         "for individual subjects in the frequency spectrum."
     )
-
+    parser.add_argument(
+        "--proc",
+        type=str,
+        default="clean",
+        help="Processing type: raw, sss, filt, or clean",
+    )
     args = parser.parse_args()
 
     # STORAGE LOCATIONS
@@ -36,10 +41,7 @@ if __name__ == "__main__":
     template_dict = {"ONEWORD": defaultdict(list), "TWOWORD": defaultdict(list)}
 
     psds_allcond = deepcopy(template_dict)
-    snrs_allcond = deepcopy(template_dict)
-
     psds_percond = deepcopy(template_dict)
-    snrs_percond = deepcopy(template_dict)
 
     owconds = ("WORD", "NONWORD")
     twconds = ("PHRASE", "NONPHRASE", "NONWORD")
@@ -56,12 +58,12 @@ if __name__ == "__main__":
 
         subfiles_allcond[task] = list(
             derivatives_root.rglob(
-                f"sub-*_ses-*_task-{args.task}_desc-{task.lower()}_allcondSNR.pkl"
+                f"sub-*_ses-*_task-{args.task}_proc-{args.proc}_desc-{task.lower()}_allcondSNR.pkl"
             )
         )
         subfiles_percond[task] = list(
             derivatives_root.rglob(
-                f"sub-*_ses-*_task-{args.task}_desc-{task.lower()}_percondSNR.pkl"
+                f"sub-*_ses-*_task-{args.task}_proc-{args.proc}_desc-{task.lower()}_percondSNR.pkl"
             )
         )
         for tasktag in tqdm(tasktags, desc=f"Processing task {task} freq tags", leave=False):
@@ -73,17 +75,15 @@ if __name__ == "__main__":
             ):
                 with open(file, "rb") as f:
                     filedata = pickle.load(f)
-                psds_allcond[task][tasktag].append(filedata[tasktag]["psd"])
-                snrs_allcond[task][tasktag].append(filedata[tasktag]["snrs"])
-            grand_mean_psd = np.average(psds_allcond[task][tasktag], axis=0)
+                psds_allcond[task][tasktag].append(np.mean(filedata[tasktag]["psds"], axis=0))
+            grand_mean_psd = np.mean(psds_allcond[task][tasktag], axis=0)
             psds_allcond[task][tasktag] = []
             # grand_mean_snr = np.average(snrs_allcond[task][tasktag], axis=0)
             grand_mean_snr = ima.snr_spectrum(
                 grand_mean_psd,
-                noise_n_neighbor_freqs=analysis_spec.noise_n_nieghbor_freqs,
+                noise_n_neighbor_freqs=analysis_spec.noise_n_neighbor_freqs,
                 noise_skip_neighbor_freqs=analysis_spec.noise_skip_neighbor_freqs,
             )
-            snrs_allcond[task][tasktag] = []
 
             np.save(
                 allcond_path_task / f"sensor_grand_mean_psd_{tasktag}.npy",
@@ -102,25 +102,28 @@ if __name__ == "__main__":
 
                 for i, cond in enumerate(taskconds):
                     cond_label = f"{cond}/{tasktag}"
-                    psds_percond[task][cond_label].append(filedata[cond_label]["psd"])
-                    snrs_percond[task][cond_label].append(filedata[cond_label]["snrs"])
+                    psds_percond[task][cond_label].append(
+                        np.mean(filedata["/".join((task, cond_label))]["psds"], axis=0)
+                    )
 
-                    grand_mean_psd = np.average(psds_percond[task][cond_label], axis=0)
-                    psds_percond[task][cond_label] = []
-                    # grand_mean_snr = np.average(snrs_percond[task][cond_label], axis=0)
-                    grand_mean_snr = ima.snr_spectrum(
-                        grand_mean_psd,
-                        noise_n_neighbor_freqs=analysis_spec.noise_n_nieghbor_freqs,
-                        noise_skip_neighbor_freqs=analysis_spec.noise_skip_neighbor_freqs,
-                    )
-                    snrs_percond[task][cond_label] = []
+            for cond in taskconds:
+                cond_label = f"{cond}/{tasktag}"
 
-                    cond_label = cond_label.replace("/", "-")
-                    np.save(
-                        percond_path_task / f"grand_mean_psd_{cond_label}.npy",
-                        grand_mean_psd,
-                    )
-                    np.save(
-                        percond_path_task / f"grand_mean_snr_{cond_label}.npy",
-                        grand_mean_snr,
-                    )
+                grand_mean_psd = np.average(psds_percond[task][cond_label], axis=0)
+                psds_percond[task][cond_label] = []
+                # grand_mean_snr = np.average(snrs_percond[task][cond_label], axis=0)
+                grand_mean_snr = ima.snr_spectrum(
+                    grand_mean_psd,
+                    noise_n_neighbor_freqs=analysis_spec.noise_n_neighbor_freqs,
+                    noise_skip_neighbor_freqs=analysis_spec.noise_skip_neighbor_freqs,
+                )
+
+                cond_label = cond_label.replace("/", "-")
+                np.save(
+                    percond_path_task / f"sensor_grand_mean_psd_{cond_label}.npy",
+                    grand_mean_psd,
+                )
+                np.save(
+                    percond_path_task / f"sensor_grand_mean_snr_{cond_label}.npy",
+                    grand_mean_snr,
+                )
