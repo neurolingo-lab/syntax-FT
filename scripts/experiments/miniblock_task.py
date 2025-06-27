@@ -73,7 +73,7 @@ if subinfo["debug"]:  # Override the experiment parameters with the debug ones i
 
 group = "even" if subinfo["even_group"] == 0 else "odd"
 onewordpath = spec.STIMPATH / f"{group}_one_word_stimuli.csv"
-twowordpath = spec.STIMPATH / f"{group}_two_word_stimuli.csv"
+twowordpath = spec.STIMPATH / f"new_{group}_two_word_stimuli.csv"
 
 rng = np.random.default_rng(subinfo["seed"])
 # Prepare word stimuli by first shuffling, then assigning frequencies
@@ -82,8 +82,16 @@ onewords, twowords, allwords = imu.load_prep_words(
     path_2w=twowordpath,
     rng=rng,
     miniblock_len=spec.MINIBLOCK_LEN,
+    N_blocks=3,
     freqs=[stimpars["f1"], stimpars["f2"]],
 )
+twowords.reset_index(drop=True, inplace=True)
+try:
+    twowords.drop(columns=["Unnamed: 0", "index"], inplace=True)
+except KeyError:
+    pass
+
+
 if subinfo["debug"] and stimpars["n_mini"] is not None:
     maxmini = stimpars["n_mini"]
     twowords = twowords.query(f"miniblock < {maxmini}")

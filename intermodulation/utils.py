@@ -107,6 +107,60 @@ class QueryTracker:
         return [self.categories[qidx[i]] for i in self.rng.permutation(4)]
 
 
+def balanced_block_split(
+    df: pd.DataFrame, miniblock_len: int, N_blocks: int, rng: np.random.Generator
+) -> pd.DataFrame:
+    sampdf = df.copy().reset_index()
+    if "invertible" in df.columns:
+        groupers = ["condition", "invertible"]
+        querystr = "condition == @group[0] and invertible == @group[1]"
+    else:
+        groupers = "condition"
+        querystr = "condition == @group"
+    stim_per_block = {
+        group: len(sampdf.query(querystr)) // N_blocks for group in sampdf.groupby(groupers).groups
+    }
+    print(stim_per_block)
+    blockdfs = []
+    startval = 0
+    for i in range(N_blocks):
+        grpdfs = []
+        grpconds = []
+        print(len(sampdf))
+        grpby = sampdf.copy().groupby(groupers)
+        # sample from each group, then remove those samples from the sample pool
+        for group, grpdf in grpby:
+            group_n = stim_per_block[group]
+            samples = grpdf.sample(group_n, random_state=rng)
+            for i in range(group_n // miniblock_len):
+                grpdfs.append(samples.iloc[i * miniblock_len : (i + 1) * miniblock_len])
+                grpconds.append(group)
+            sampdf = sampdf.drop(samples.index)
+        print(len(grpdfs))
+        # Shuffle the miniblock dfs while ensuring the main condition isn't repeated more than 2x
+        lastconds = [None, None]  # Simple FIFO stack
+        shuffdfs = []  # Final shuffled miniblock list
+        while len(grpdfs) > 0:
+            nextidx = rng.integers(0, len(grpdfs))
+            if grpconds[nextidx][0] == lastconds[0] and grpconds[nextidx][0] == lastconds[1]:
+                continue
+            lastconds.insert(0, grpconds.pop(nextidx))
+            lastconds.pop()
+            shuffdfs.append(grpdfs.pop(nextidx))
+
+        blockdf = pd.concat(shuffdfs, ignore_index=True)
+        try:
+            blockdf = blockdf.drop(columns=["Unnamed: 0", "index"])
+        except KeyError:
+            pass
+        blockdf["miniblock"] = np.repeat(
+            np.arange(startval, len(shuffdfs) + startval), miniblock_len
+        )
+        blockdfs.append(blockdf)
+        startval = blockdf["miniblock"].max() + 1
+    return pd.concat(blockdfs, ignore_index=True)
+
+
 def shuffle_condition(df: pd.DataFrame, rng: np.random.Generator) -> pd.DataFrame:
     """
     Shuffle the condition column of a DataFrame, while keeping the number of each condition the same.
@@ -124,13 +178,17 @@ def shuffle_condition(df: pd.DataFrame, rng: np.random.Generator) -> pd.DataFram
         The input DataFrame with the 'condition' column shuffled
     """
     df = df.copy()
-    grp = df.groupby("condition")
+    if "invertible" in df.columns:
+        grp = df.groupby(["condition", "invertible"])
+    else:
+        grp = df.groupby("condition")
     return grp.sample(frac=1, random_state=rng).reset_index(drop=True)
 
 
 def split_miniblocks(
     df: pd.DataFrame,
     miniblock_len: int,
+    N_blocks: int | None = None,
     rng: np.random.Generator = np.random.default_rng(),
     dup_extra: bool = False,
 ) -> pd.DataFrame:
@@ -170,10 +228,12 @@ def split_miniblocks(
                 dups.append(df.query(f"condition == '{cond}'").sample(n, random_state=rng))
             dupdf = pd.concat(dups, ignore_index=True)
             df = pd.concat([df, dupdf], ignore_index=True)
-    sorted_df = df.sort_values("condition")
-    miniblocks = np.repeat(np.arange(int(n_mini)), miniblock_len)
-    sorted_df["miniblock"] = miniblocks
-    return sorted_df
+    if N_blocks is not None:
+        print(N_blocks)
+        df = balanced_block_split(df, miniblock_len, N_blocks, rng)
+    else:
+        df = balanced_block_split(df, miniblock_len, 1, rng)
+    return df
 
 
 def assign_miniblock_freqs(
@@ -207,11 +267,12 @@ def prep_miniblocks(
     rng: np.random.Generator,
     df: pd.DataFrame,
     miniblock_len: int,
+    N_blocks: int | None,
     freqs: Sequence[float],
 ) -> pd.DataFrame:
     # Shuffle within conditions and split into miniblocks.
-    shuf_df = shuffle_condition(df, rng)
-    miniblock_df = split_miniblocks(shuf_df, miniblock_len, rng)
+    print(N_blocks)
+    miniblock_df = split_miniblocks(df, miniblock_len, N_blocks, rng)
     # Assign frequencies to each miniblock
     outdf = assign_miniblock_freqs(miniblock_df, freqs, rng)
     return outdf
@@ -222,15 +283,17 @@ def load_prep_words(
     path_2w: str | Path,
     rng: np.random.Generator,
     miniblock_len: int,
+    N_blocks: int,
     freqs: Sequence[float],
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     # Prepare word stimuli by first shuffling, then assigning frequencies
     twowords = pd.read_csv(path_2w, index_col=0)
     twowords = twowords.sample(frac=1, random_state=rng)
-    twowords = prep_miniblocks("twoword", rng, twowords, miniblock_len, freqs)
+    print(N_blocks)
+    twowords = prep_miniblocks("twoword", rng, twowords, miniblock_len, N_blocks, freqs)
     onewords = pd.read_csv(path_1w, index_col=0)
     onewords = onewords.sample(frac=1, random_state=rng)
-    onewords = prep_miniblocks("oneword", rng, onewords, miniblock_len, freqs)
+    onewords = prep_miniblocks("oneword", rng, onewords, miniblock_len, N_blocks=None, freqs=freqs)
 
     # Generate a list of all used words together with their categories, for the query task
     all_2w = pd.melt(
