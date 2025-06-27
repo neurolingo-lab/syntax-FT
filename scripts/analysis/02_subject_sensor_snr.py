@@ -2,36 +2,16 @@ import pickle
 
 import mne
 import mne_bids as mnb
+from tqdm import tqdm
 
 import intermodulation.analysis as ima
 from intermodulation import analysis_spec, freqtag_spec
 
 if __name__ == "__main__":
     parser = analysis_spec.make_parser()
-
-    parser.add_argument(
-        "--save-deriv",
-        action="store_true",
-        help="Whether the data should be stored in the BIDS derivatives directory once saved. "
-        "Outputs will be saved to the 'mne-bids-pipeline' directory under the appropriate subject "
-        "and session label, named as e.g. "
-        "`sub-XX_ses-XX_task-syntaxIM_proc-PROC_desc-[oneword/twoword]_allcondSNR.pkl",
-    )
-    parser.add_argument(
-        "--snr-skip",
-        type=int,
-        default=2,
-        help="Number of frequency bins to skip on either side of a frequency bin for SNR "
-        "computation. By default 2 bin on each side.",
-    )
-    parser.add_argument(
-        "--snr-neighbors",
-        type=int,
-        default=12,
-        help="Number of neighboring frequency bins to consider when computing the signal-to-noise "
-        "ratio for a given frequency bin. This does not include the skipped bins immediately "
-        "adjacent.",
-    )
+    parser.description = """Pipeline script to compute sensor space signal-to-noise ratio (SNR) data
+    for individual subjects in the frequency spectrum. This script will compute SNR for
+    the oneword and twoword tasks, for all conditions combined and per condition."""
     args = parser.parse_args()
 
     processing = None if args.proc == "raw" else args.proc
@@ -45,10 +25,6 @@ if __name__ == "__main__":
             f"Could not find derivatives directory for subject {args.subject}, "
             f"session {args.session}!"
         )
-
-    args.plotpath.mkdir(parents=True, exist_ok=True)
-    plotpath = args.plotpath / f"sub-{args.subject}" / procdir
-    plotpath.mkdir(parents=True, exist_ok=True)
 
     raw_bidspath = mnb.BIDSPath(
         subject=args.subject,
@@ -89,8 +65,8 @@ if __name__ == "__main__":
     # Global parameters for different FFTs, using the common set from analysis spec
     tmin = 0.0
     tmax = minidur
-    snr_skip_neighbor_J = args.snr_skip
-    snr_neighbor_K = args.snr_neighbors
+    snr_skip_neighbor_J = analysis_spec.noise_skip_neighbor_freqs
+    snr_neighbor_K = analysis_spec.noise_n_nieghbor_freqs
 
     psd_kwargs = analysis_spec.sensor_fft_pars.copy()
     psd_kwargs.update(
@@ -110,13 +86,13 @@ if __name__ == "__main__":
     allcond_spectra_tw = {"samp_epoch": epochs[0]}
     percond_spectra_ow = {"samp_epoch": epochs[0]}
     percond_spectra_tw = {"samp_epoch": epochs[0]}
-    for tag in ["F1", "F2"]:
+    for tag in tqdm(["F1", "F2"], desc="Processing tag sets"):
         twtag = "F1LEFT" if tag == "F1" else "F1RIGHT"
         spectrum = epochs[f"MINIBLOCK/ONEWORD/{tag}"].compute_psd(
-            exclude="bads", n_jobs=-1, verbose=False, **psd_kwargs
+            exclude="bads", n_jobs=-1, verbose="error", **psd_kwargs
         )
         twspectrum = epochs[f"MINIBLOCK/TWOWORD/{twtag}"].compute_psd(
-            exclude="bads", n_jobs=-1, verbose=False, **psd_kwargs
+            exclude="bads", n_jobs=-1, verbose="error", **psd_kwargs
         )
         psds, freqs = spectrum.get_data(return_freqs=True)
         twpsds, twfreqs = twspectrum.get_data(return_freqs=True)
@@ -132,10 +108,10 @@ if __name__ == "__main__":
         )
         allcond_spectra_ow[tag] = dict(psds=psds, freqs=freqs, snrs=snrs)
         allcond_spectra_tw[twtag] = dict(psds=twpsds, freqs=twfreqs, snrs=twsnrs)
-        for cond in ["WORD", "NONWORD"]:
+        for cond in tqdm(["WORD", "NONWORD"], desc=f"Processing OW {tag} conditions", leave=False):
             fulltag = f"ONEWORD/{cond}/{tag}"
             spectrum = epochs["MINIBLOCK/" + fulltag].compute_psd(
-                exclude="bads", n_jobs=-1, **psd_kwargs
+                exclude="bads", n_jobs=-1, verbose="error", **psd_kwargs
             )
             psds, freqs = spectrum.get_data(return_freqs=True)
             snrs = ima.snr_spectrum(
@@ -144,10 +120,12 @@ if __name__ == "__main__":
                 noise_skip_neighbor_freqs=snr_skip_neighbor_J,
             )
             percond_spectra_ow[fulltag] = dict(psds=psds, freqs=freqs, snrs=snrs)
-        for cond in ["PHRASE", "NONPHRASE", "NONWORD"]:
+        for cond in tqdm(
+            ["PHRASE", "NONPHRASE", "NONWORD"], desc="Processing TW conditions", leave=False
+        ):
             fulltag = f"TWOWORD/{cond}/{twtag}"
             spectrum = epochs["MINIBLOCK/" + fulltag].compute_psd(
-                exclude="bads", n_jobs=-1, **psd_kwargs
+                exclude="bads", n_jobs=-1, verbose="error", **psd_kwargs
             )
             psds, freqs = spectrum.get_data(return_freqs=True)
             snrs = ima.snr_spectrum(
@@ -157,27 +135,26 @@ if __name__ == "__main__":
             )
             percond_spectra_tw[fulltag] = dict(psds=psds, freqs=freqs, snrs=snrs)
     print("Done.")
-    if args.save_deriv:
-        print(f"Saving data to {procpath} ...")
-        with open(
-            procpath / f"{owbase}_allcondSNR.pkl",
-            "wb",
-        ) as f:
-            pickle.dump(allcond_spectra_ow, f)
-        with open(
-            procpath / f"{twbase}_allcondSNR.pkl",
-            "wb",
-        ) as f:
-            pickle.dump(allcond_spectra_tw, f)
-        with open(
-            procpath / f"{owbase}_percondSNR.pkl",
-            "wb",
-        ) as f:
-            pickle.dump(percond_spectra_ow, f)
-        with open(
-            procpath / f"{twbase}_percondSNR.pkl",
-            "wb",
-        ) as f:
-            pickle.dump(percond_spectra_tw, f)
+    print(f"Saving data to {procpath} ...")
+    with open(
+        procpath / f"{owbase}_allcondSNR.pkl",
+        "wb",
+    ) as f:
+        pickle.dump(allcond_spectra_ow, f)
+    with open(
+        procpath / f"{twbase}_allcondSNR.pkl",
+        "wb",
+    ) as f:
+        pickle.dump(allcond_spectra_tw, f)
+    with open(
+        procpath / f"{owbase}_percondSNR.pkl",
+        "wb",
+    ) as f:
+        pickle.dump(percond_spectra_ow, f)
+    with open(
+        procpath / f"{twbase}_percondSNR.pkl",
+        "wb",
+    ) as f:
+        pickle.dump(percond_spectra_tw, f)
 
-        print("Done.\n")
+    print("Done.\n")

@@ -3,13 +3,12 @@ from pathlib import Path
 import mne
 import numpy as np
 
-from intermodulation.analysis_spec import pick_points
+from intermodulation.analysis_spec import make_parser, pick_points
 
 if __name__ == "__main__":
-    from argparse import ArgumentParser
-
-    parser = ArgumentParser(
-        description="Pipeline script to compute source space signal-to-noise data "
+    parser = make_parser(group_level=True, plots=True)
+    parser.description = (
+        "Pipeline script to compute source space signal-to-noise data "
         "for individual subjects in the frequency spectrum."
     )
     parser.add_argument(
@@ -25,12 +24,6 @@ if __name__ == "__main__":
         default="/srv/beegfs/scratch/users/g/gercek/syntax_im/syntax_dataset/derivatives/freesurfer",
         help="Path to the freesurfer subjects directory in which recon-all outputs are stored for "
         "the `fsaverage` subject.",
-    )
-    parser.add_argument(
-        "--plotpath",
-        type=Path,
-        default="/srv/beegfs/scratch/users/g/gercek/syntax_im/results/",
-        help="Directory in which to save SNR and PSD plots. Defaults to same directory as results",
     )
     parser.add_argument(
         "--meg-true-samprate",

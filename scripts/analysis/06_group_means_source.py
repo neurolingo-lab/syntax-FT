@@ -1,38 +1,20 @@
 import pickle
 from collections import defaultdict
 from copy import deepcopy
-from pathlib import Path
 
 import numpy as np
 from tqdm import tqdm
 
 import intermodulation.analysis as ima
+from intermodulation import analysis_spec
 
 if __name__ == "__main__":
-    from argparse import ArgumentParser
-
-    parser = ArgumentParser(
-        description="Pipeline script to compute source space signal-to-noise data "
+    parser = analysis_spec.make_parser(group_level=True, plots=True)
+    parser.description = (
+        "Pipeline script to compute source space signal-to-noise data "
         "for individual subjects in the frequency spectrum."
     )
-    parser.add_argument(
-        "--task",
-        type=str,
-        default="syntaxIM",
-        help="Task name, should match the task name in the BIDS dataset.",
-    )
-    parser.add_argument(
-        "--bids_root",
-        type=Path,
-        default="/srv/beegfs/scratch/users/g/gercek/syntax_im/syntax_dataset",
-        help="Root directory for BIDS dataset",
-    )
-    parser.add_argument(
-        "--plotpath",
-        type=Path,
-        default="/srv/beegfs/scratch/users/g/gercek/syntax_im/results/",
-        help="Directory in which to save SNR plots, if any",
-    )
+
     args = parser.parse_args()
 
     # STORAGE LOCATIONS
@@ -102,8 +84,8 @@ if __name__ == "__main__":
             # grand_mean_snr = np.average(snrs_allcond[task][tasktag], axis=0)
             grand_mean_snr = ima.snr_spectrum(
                 grand_mean_psd,
-                noise_n_neighbor_freqs=9,
-                noise_skip_neighbor_freqs=2,
+                noise_n_neighbor_freqs=analysis_spec.noise_n_nieghbor_freqs,
+                noise_skip_neighbor_freqs=analysis_spec.noise_skip_neighbor_freqs,
             )
             snrs_allcond[task][tasktag] = []
 
@@ -149,16 +131,21 @@ if __name__ == "__main__":
 
                     grand_mean_psd = np.average(psds_percond[task][cond_label], axis=0)
                     psds_percond[task][cond_label] = []
-                    grand_mean_snr = np.average(snrs_percond[task][cond_label], axis=0)
+                    # grand_mean_snr = np.average(snrs_percond[task][cond_label], axis=0)
+                    grand_mean_snr = ima.snr_spectrum(
+                        grand_mean_psd,
+                        noise_n_neighbor_freqs=analysis_spec.noise_n_nieghbor_freqs,
+                        noise_skip_neighbor_freqs=analysis_spec.noise_skip_neighbor_freqs,
+                    )
                     snrs_percond[task][cond_label] = []
 
                     cond_label = cond_label.replace("/", "-")
                     np.save(
-                        percond_path_task / f"grand_mean_psd_{cond_label}.npy",
+                        percond_path_task / f"source_grand_mean_psd_{cond_label}.npy",
                         grand_mean_psd,
                     )
                     np.save(
-                        percond_path_task / f"grand_mean_snr_{cond_label}.npy",
+                        percond_path_task / f"source_grand_mean_snr_{cond_label}.npy",
                         grand_mean_snr,
                     )
 

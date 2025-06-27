@@ -1,38 +1,20 @@
 import pickle
 from collections import defaultdict
 from copy import deepcopy
-from pathlib import Path
 
 import numpy as np
 from tqdm import tqdm
 
 import intermodulation.analysis as ima
+from intermodulation import analysis_spec
 
 if __name__ == "__main__":
-    from argparse import ArgumentParser
-
-    parser = ArgumentParser(
-        description="Pipeline script to compute source space signal-to-noise data "
+    parser = analysis_spec.make_parser(group_level=True, plots=True)
+    parser.description = (
+        "Pipeline script to compute source space signal-to-noise data "
         "for individual subjects in the frequency spectrum."
     )
-    parser.add_argument(
-        "--task",
-        type=str,
-        default="syntaxIM",
-        help="Task name, should match the task name in the BIDS dataset.",
-    )
-    parser.add_argument(
-        "--bids_root",
-        type=Path,
-        default="/srv/beegfs/scratch/users/g/gercek/syntax_im/syntax_dataset",
-        help="Root directory for BIDS dataset",
-    )
-    parser.add_argument(
-        "--plotpath",
-        type=Path,
-        default="/srv/beegfs/scratch/users/g/gercek/syntax_im/results/",
-        help="Directory in which to save SNR plots, if any",
-    )
+
     args = parser.parse_args()
 
     # STORAGE LOCATIONS
@@ -46,8 +28,6 @@ if __name__ == "__main__":
     percond_path.mkdir(parents=True, exist_ok=True)
 
     derivatives_root = bids_root / "derivatives/mne-bids-pipeline"
-    fs_root = bids_root / "derivatives/freesurfer"
-    fs_sub = "fsaverage"
 
     # Load in PSD, SNR data from individual subject files
     subfiles_allcond = {}
@@ -76,12 +56,12 @@ if __name__ == "__main__":
 
         subfiles_allcond[task] = list(
             derivatives_root.rglob(
-                f"sub-*_ses-*_task-{args.task}_desc-morphFSAVG{task.lower()}_allcondSNRsource.pkl"
+                f"sub-*_ses-*_task-{args.task}_desc-{task.lower()}_allcondSNR.pkl"
             )
         )
         subfiles_percond[task] = list(
             derivatives_root.rglob(
-                f"sub-*_ses-*_task-{args.task}_desc-morphFSAVG{task.lower()}_percondSNRsource.pkl"
+                f"sub-*_ses-*_task-{args.task}_desc-{task.lower()}_percondSNR.pkl"
             )
         )
         for tasktag in tqdm(tasktags, desc=f"Processing task {task} freq tags", leave=False):
@@ -95,43 +75,23 @@ if __name__ == "__main__":
                     filedata = pickle.load(f)
                 psds_allcond[task][tasktag].append(filedata[tasktag]["psd"])
                 snrs_allcond[task][tasktag].append(filedata[tasktag]["snrs"])
-                if i == 0:
-                    template_stc = filedata[tasktag]["stc"]
             grand_mean_psd = np.average(psds_allcond[task][tasktag], axis=0)
             psds_allcond[task][tasktag] = []
             # grand_mean_snr = np.average(snrs_allcond[task][tasktag], axis=0)
             grand_mean_snr = ima.snr_spectrum(
                 grand_mean_psd,
-                noise_n_neighbor_freqs=9,
-                noise_skip_neighbor_freqs=2,
+                noise_n_neighbor_freqs=analysis_spec.noise_n_nieghbor_freqs,
+                noise_skip_neighbor_freqs=analysis_spec.noise_skip_neighbor_freqs,
             )
             snrs_allcond[task][tasktag] = []
 
             np.save(
-                allcond_path_task / f"grand_mean_psd_{tasktag}.npy",
+                allcond_path_task / f"sensor_grand_mean_psd_{tasktag}.npy",
                 grand_mean_psd,
             )
             np.save(
-                allcond_path_task / f"grand_mean_snr_{tasktag}.npy",
+                allcond_path_task / f"sensor_grand_mean_snr_{tasktag}.npy",
                 grand_mean_snr,
-            )
-
-            mean_psd_stc = template_stc.copy()
-            mean_psd_stc.data = np.nan_to_num(grand_mean_psd)
-            mean_psd_stc.save(
-                allcond_path_task / f"grand_mean_psd_{tasktag}",
-                ftype="stc",
-                overwrite=True,
-                verbose="error",
-            )
-
-            mean_snr_stc = template_stc.copy()
-            mean_snr_stc.data = np.nan_to_num(grand_mean_snr)
-            mean_snr_stc.save(
-                allcond_path_task / f"grand_mean_snr_{tasktag}",
-                ftype="stc",
-                overwrite=True,
-                verbose="error",
             )
 
             for file in tqdm(
@@ -144,12 +104,15 @@ if __name__ == "__main__":
                     cond_label = f"{cond}/{tasktag}"
                     psds_percond[task][cond_label].append(filedata[cond_label]["psd"])
                     snrs_percond[task][cond_label].append(filedata[cond_label]["snrs"])
-                    if i == 0:
-                        template_stc = filedata[cond_label]["stc"]
 
                     grand_mean_psd = np.average(psds_percond[task][cond_label], axis=0)
                     psds_percond[task][cond_label] = []
-                    grand_mean_snr = np.average(snrs_percond[task][cond_label], axis=0)
+                    # grand_mean_snr = np.average(snrs_percond[task][cond_label], axis=0)
+                    grand_mean_snr = ima.snr_spectrum(
+                        grand_mean_psd,
+                        noise_n_neighbor_freqs=analysis_spec.noise_n_nieghbor_freqs,
+                        noise_skip_neighbor_freqs=analysis_spec.noise_skip_neighbor_freqs,
+                    )
                     snrs_percond[task][cond_label] = []
 
                     cond_label = cond_label.replace("/", "-")
@@ -160,22 +123,4 @@ if __name__ == "__main__":
                     np.save(
                         percond_path_task / f"grand_mean_snr_{cond_label}.npy",
                         grand_mean_snr,
-                    )
-
-                    mean_psd_stc = template_stc.copy()
-                    mean_psd_stc.data = np.nan_to_num(grand_mean_psd)
-                    mean_psd_stc.save(
-                        percond_path_task / f"grand_mean_psd_{cond_label}",
-                        ftype="stc",
-                        overwrite=True,
-                        verbose="error",
-                    )
-
-                    mean_snr_stc = template_stc.copy()
-                    mean_snr_stc.data = np.nan_to_num(grand_mean_snr)
-                    mean_snr_stc.save(
-                        percond_path_task / f"grand_mean_snr_{cond_label}",
-                        ftype="stc",
-                        overwrite=True,
-                        verbose="error",
                     )

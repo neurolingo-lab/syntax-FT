@@ -1,11 +1,11 @@
 import pickle
-from pathlib import Path
 
 import mne
 import mne_bids as mnb
 
 import intermodulation.analysis as ima
 import intermodulation.freqtag_spec as spec
+from intermodulation import analysis_spec
 
 
 def source_psd_epochs_avg(epochs, psd_kwargs):
@@ -36,48 +36,10 @@ def morph_psd_and_snr(plotstc: mne.SourceEstimate, psdavg, snrs):
 
 
 if __name__ == "__main__":
-    from argparse import ArgumentParser
-
-    parser = ArgumentParser(
-        description="Pipeline script to compute source space signal-to-noise data "
+    parser = analysis_spec.make_parser()
+    parser.description = (
+        "Pipeline script to compute source space signal-to-noise data "
         "for individual subjects in the frequency spectrum."
-    )
-    parser.add_argument(
-        "--proc",
-        type=str,
-        default="raw",
-        help="Processing type: raw, sss, filt, or clean",
-    )
-    parser.add_argument(
-        "--subject",
-        type=str,
-        default="02",
-        help="Subject ID",
-    )
-    parser.add_argument(
-        "--session",
-        type=str,
-        default="01",
-        help="Session ID",
-    )
-    parser.add_argument(
-        "--task",
-        type=str,
-        default="syntaxIM",
-        help="Task name, should match the task name in the BIDS dataset.",
-    )
-    parser.add_argument(
-        "--bids_root",
-        type=Path,
-        default="/srv/beegfs/scratch/users/g/gercek/syntax_im/syntax_dataset",
-        help="Root directory for BIDS dataset",
-    )
-    parser.add_argument(
-        "--inverse-method",
-        type=str,
-        default="MNE",
-        help="The inverse method used to compute the source PSD. Shoudl match whichever method was"
-        " used to compute the inverse solution.",
     )
     parser.add_argument(
         "--morph-fsaverage",
@@ -93,34 +55,11 @@ if __name__ == "__main__":
         "available. If not provided, will use the file present in the freesurfer `bem` directory "
         "for the subject/session, provided only one source space file is present.",
     )
-    parser.add_argument(
-        "--plotpath",
-        type=Path,
-        default="/srv/beegfs/scratch/users/g/gercek/syntax_im/results/",
-        help="Directory in which to save SNR plots, if any",
-    )
-    parser.add_argument(
-        "--snr-skip",
-        type=int,
-        default=2,
-        help="Number of frequency bins to skip on either side of a frequency bin for SNR "
-        "computation. By default 2 bin on each side.",
-    )
-    parser.add_argument(
-        "--snr-neighbors",
-        type=int,
-        default=9,
-        help="Number of neighboring frequency bins to consider when computing the signal-to-noise "
-        "ratio for a given frequency bin. This does not include the skipped bins immediately "
-        "adjacent.",
-    )
+
     args = parser.parse_args()
 
     # STORAGE LOCATIONS
     bids_root = args.bids_root
-    savepath = args.plotpath / f"sub-{args.subject}"
-
-    savepath.mkdir(parents=True, exist_ok=True)
 
     derivatives_root = bids_root / "derivatives/mne-bids-pipeline"
     fs_root = bids_root / "derivatives/freesurfer"
@@ -172,7 +111,7 @@ if __name__ == "__main__":
         )
     else:
         src_path = list(src_path.glob("sub*-src.fif"))[0]
-    
+
     if not bem_path.glob("sub*-bem-sol.fif"):
         raise FileNotFoundError("No BEM solution file found!")
     elif len(list(bem_path.glob("sub*-bem-sol.fif"))) > 1:
@@ -227,15 +166,13 @@ if __name__ == "__main__":
         mne.minimum_norm.write_inverse_operator(inv_bidspath.fpath, inv, overwrite=True)
 
     if args.morph_fsaverage:
-        fsavg_src = mne.read_source_spaces(
-            fs_root / "fsaverage/bem/fsaverage-ico-5-src.fif"
-        )
+        fsavg_src = mne.read_source_spaces(fs_root / "fsaverage/bem/fsaverage-ico-5-src.fif")
         morph = mne.compute_source_morph(
             fwd["src"],
             subject_from=fs_sub,
             subject_to="fsaverage",
             subjects_dir=fs_root,
-            src_to=fsavg_src
+            src_to=fsavg_src,
         )
         morphstr = "morphFSAVG"
     else:
@@ -248,34 +185,21 @@ if __name__ == "__main__":
     del raw
     if epochs.info["sfreq"] >= 2000:
         epochs.decimate(4)
-    if epochs.info["sfreq"] >= 1000:
+    elif epochs.info["sfreq"] >= 1000:
         epochs.decimate(2)
 
     # Compute source space PSD and then SNR
     # Global parameters for different FFTs
     minidur = spec.WORD_DUR * spec.MINIBLOCK_LEN
 
-    fmin = 0.1
-    fmax = 140.0
-    tmin = 0.1
-    tmax = 21.0
-    tmax = minidur
-    snr_skip_neighbor_J = args.snr_skip
-    snr_neighbor_K = args.snr_neighbors
-    psd_kwargs = dict(
-        inverse_operator=inv,
-        lambda2=1 / 9.0,
-        method="MNE",
-        # n_fft=int(epochs.info["sfreq"] * (tmax - tmin)),  # Apparently these are not in source epochs
-        # overlap=0.0,
-        # tmin=tmin,
-        # tmax=tmax,
-        fmin=fmin,
-        fmax=fmax,
-        nave=1,
-        bandwidth="hann",
-        low_bias=True,
-        n_jobs=-1,
+    snr_skip_neighbor_J = analysis_spec.noise_skip_neighbor_freqs
+    snr_neighbor_K = analysis_spec.noise_n_neighbor_freqs
+    psd_kwargs = analysis_spec.source_fft_pars.copy()
+    psd_kwargs.update(
+        dict(
+            inverse_operator=inv,
+            n_jobs=-1,
+        )
     )
 
     print("Computing SNR for oneword+twoword, per condition and all conditions...")

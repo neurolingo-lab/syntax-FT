@@ -7,6 +7,13 @@ from intermodulation import analysis_spec
 
 if __name__ == "__main__":
     parser = analysis_spec.make_parser(plots=True)
+    parser.description = (
+        "Pipeline script to plot sensor space signal-to-noise ratio (SNR) data "
+        "for individual subjects in the frequency spectrum. This script will plot SNR for "
+        "the oneword and twoword tasks, for all conditions combined and per condition. Note that "
+        "this script requires the SNR data to be pre-computed and saved in the derivatives"
+        "directory."
+    )
 
     args = parser.parse_args()
 
@@ -34,13 +41,14 @@ if __name__ == "__main__":
         session=args.session,
         task=args.task,
         processing=processing,
+        datatype="meg",
         suffix=None,
         extension=".pkl",
         root=derivatives_root,
         check=False,  # Need to disable checking for derivatives
     )
-    ow_base_path = base_bidspath.copy().update(desc="oneword")
-    tw_base_path = base_bidspath.copy().update(desc="twoword")
+    ow_base_path = base_bidspath.copy().update(description="oneword")
+    tw_base_path = base_bidspath.copy().update(description="twoword")
 
     print("Plotting SNR and SNR topos for oneword+twoword, all conditions combined...")
     plot_freqs = (1, 15)
@@ -48,7 +56,8 @@ if __name__ == "__main__":
 
     allcond_spectra_ow = pd.read_pickle(ow_base_path.update(suffix="allcondSNR").fpath)
     allcond_spectra_tw = pd.read_pickle(tw_base_path.update(suffix="allcondSNR").fpath)
-    epochs = allcond_spectra_ow["samp_epoch"].copy()
+    epochs = allcond_spectra_ow.pop("samp_epoch")
+    _ = allcond_spectra_tw.pop("samp_epoch")
 
     for name, spectra in {"oneword": allcond_spectra_ow, "twoword": allcond_spectra_tw}.items():
         fig, axes = plt.subplots(2, 2, figsize=(15, 11), sharex=True, sharey="row")
@@ -109,6 +118,8 @@ if __name__ == "__main__":
 
     percond_spectra_ow = pd.read_pickle(ow_base_path.update(suffix="percondSNR").fpath)
     percond_spectra_tw = pd.read_pickle(tw_base_path.update(suffix="percondSNR").fpath)
+    _ = percond_spectra_ow.pop("samp_epoch")
+    _ = percond_spectra_tw.pop("samp_epoch")
 
     print("Plotting SNR and SNR topos for oneword+twoword, per condition...")
     for name, spectra in {"oneword": percond_spectra_ow, "twoword": percond_spectra_tw}.items():

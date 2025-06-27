@@ -99,3 +99,6 @@ sensor_fft_pars = dict(method="welch", n_overlap=0, n_per_seg=None, window="boxc
 source_fft_pars = dict(
     lambda2=1 / 9.0, method="MNE", nave=1, bandwidth="hann", low_bias=True, **fft_pars
 )
+
+noise_n_nieghbor_freqs = 12
+noise_skip_neighbor_freqs = 2
