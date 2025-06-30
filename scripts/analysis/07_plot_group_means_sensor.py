@@ -4,6 +4,7 @@ import mne
 import mne_bids as mnb
 import numpy as np
 from matplotlib import pyplot as plt
+from tqdm import tqdm
 
 import intermodulation.plot as imp
 from intermodulation.analysis_spec import make_parser, psd_plot_freqs
@@ -99,7 +100,7 @@ if __name__ == "__main__":
     }
     topofig_kw = dict(figsize=(8, 8), dpi=200)
 
-    for task in tasks:
+    for task in tqdm(tasks, desc="Task"):
         oneword = True if task == "ONEWORD" else False
         taskname = "oneword" if oneword else "twoword"
 
@@ -114,7 +115,7 @@ if __name__ == "__main__":
         percond_taskpath = plotpath / f"percond/{task.lower()}/"
         percond_taskpath.mkdir(parents=True, exist_ok=True)
         fig, axes = plt.subplots(2, 2, figsize=(15, 11), sharex=True, sharey="row")
-        for i, tag in enumerate(tasktags):
+        for i, tag in tqdm(enumerate(tasktags), desc="Tag subplot", leave=False):
             mean_psd = np.load(
                 allcond_taskdata / f"sensor_grand_mean_psd_{tag}.npy",
                 allow_pickle=True,
@@ -148,7 +149,9 @@ if __name__ == "__main__":
                 titleannot=titlestr,
                 tagfreq=tagfreq,
                 plotpsd=True,
+                annot_snr_peaks=True,
             )
+
             # Topomap plots
             topofig = imp.snr_topo(
                 mean_snr,
@@ -160,6 +163,7 @@ if __name__ == "__main__":
                 ymax=8.0,
                 vlines=[tagfreq] if oneword else tagfreq,
                 fig_kwargs=topofig_kw,
+                annot_max=True,
             )
             topofig.suptitle(titlestr + ": All conditions", color="w")
             topofig.savefig(allcond_taskpath / f"{taskname}_allcond_{tag}_snrtopo.pdf")
@@ -170,8 +174,8 @@ if __name__ == "__main__":
 
         ncond = len(taskconds) * 2
         fig, axes = plt.subplots(2, ncond, figsize=(ncond * 5, 11), sharex=True, sharey="row")
-        for i, tag in enumerate(tasktags):
-            for j, cond in enumerate(taskconds):
+        for i, tag in tqdm(enumerate(tasktags), desc="Tag subplot", leave=False):
+            for j, cond in tqdm(enumerate(taskconds), desc="Cond subplot", leave=False):
                 colidx = i * len(taskconds) + j
                 fulltag = f"{cond}-{tag}"
                 psd = np.load(
@@ -216,6 +220,7 @@ if __name__ == "__main__":
                     titleannot=titlestr,
                     tagfreq=tagfreq,
                     plotpsd=True,
+                    annot_snr_peaks=True,
                 )
                 topofig = imp.snr_topo(
                     snr,
@@ -227,6 +232,7 @@ if __name__ == "__main__":
                     ymax=8.0,
                     vlines=[tagfreq] if oneword else tagfreq,
                     fig_kwargs=topofig_kw,
+                    annot_max=True,
                 )
                 topofig.suptitle(f"{taskname}: {tag} {cond} trials SNR", color="w")
                 topofig.savefig(plotpath / f"{taskname}_{cond}_{tag}_snrtopo.pdf")

@@ -1,3 +1,4 @@
+import warnings
 from functools import partial
 
 import matplotlib
@@ -52,7 +53,7 @@ def snr_topo(
 
     for ax, idx in itertopo:
         mne.Epochs._keys_to_idx
-        ax.plot(freqs, snrs[idx], color="w", lw=0.25)[0]
+        ax.plot(freqs, snrs[idx], color="w", lw=0.15)[0]
         ax.set_ylim(ymin, ymax)
         ax.set_xlim(fmin, fmax)
         if show_axes:
@@ -64,7 +65,7 @@ def snr_topo(
             ax.spines.left.set_alpha(0.5)
         if vlines is not None:
             for vline in vlines:
-                ax.axvline(vline, color="w", linestyle="--", alpha=0.75, lw=0.3)
+                ax.axvline(vline, color="w", linestyle="--", alpha=0.75, lw=0.15)
         if annot_max:
             maxidx = np.nanargmax(snrs[idx])
             maxsnrF = freqs[maxidx]
@@ -190,7 +191,17 @@ def itc_singlefreq_topo(
 
 
 def plot_snr(
-    psds, snrs, freqs, fmin, fmax, titleannot="", fig=None, axes=None, tagfreq=None, plotpsd=False
+    psds,
+    snrs,
+    freqs,
+    fmin,
+    fmax,
+    titleannot="",
+    fig=None,
+    axes=None,
+    tagfreq=None,
+    plotpsd=False,
+    annot_snr_peaks=False,
 ):
     if len(titleannot) > 0:
         titleannot = ": " + titleannot
@@ -229,8 +240,11 @@ def plot_snr(
         axidx += 1
 
     # SNR spectrum
-    snr_mean = snrs.mean(axis=meanaxis)[freq_range]
-    snr_std = snrs.std(axis=meanaxis)[freq_range]
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore")
+        snr_mean = np.nanmean(snrs, axis=meanaxis)[freq_range]
+        # print(snr_mean.shape)
+        snr_std = np.nanstd(snrs, axis=meanaxis)[freq_range]
 
     axes[axidx].plot(freqs[freq_range], snr_mean, color="r")
     axes[axidx].fill_between(
@@ -241,6 +255,20 @@ def plot_snr(
         xlabel="Frequency [Hz]",
         ylabel="SNR",
     )
+
+    # Annotate peaks above given SNR if annot_snr_peaks is not false.
+    if annot_snr_peaks is not False:
+        if not isinstance(annot_snr_peaks, bool) and (
+            isinstance(annot_snr_peaks, float) or isinstance(annot_snr_peaks, int)
+        ):
+            minpeak = annot_snr_peaks
+        else:
+            minpeak = 1.5
+        for idx, freq in enumerate(freqs[freq_range]):
+            if ((peak := snr_mean[idx]) > minpeak) and np.isfinite(peak):
+                # print(peak, minpeak)
+                axes[axidx].annotate(f"{freq:0.2f} Hz", (freq, peak))
+
     if tagfreq is not None:
         if isinstance(tagfreq, (list, np.ndarray)):
             tagfreqs = tagfreq
