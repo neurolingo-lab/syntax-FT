@@ -12,7 +12,17 @@ if __name__ == "__main__":
     parser.description = """Pipeline script to compute sensor space signal-to-noise ratio (SNR) data
     for individual subjects in the frequency spectrum. This script will compute SNR for
     the oneword and twoword tasks, for all conditions combined and per condition."""
+
+    parser.add_argument(
+        "--cond-mean",
+        action="store_true",
+        help="Whether to average the evoked epochs prior to computing the PSD"
+        "and SNR for a given condition. Will produce an additional description string in the "
+        "saved files CONDMEAN.",
+    )
+
     args = parser.parse_args()
+
 
     processing = None if args.proc == "raw" else args.proc
     procdir = "raw" if args.proc == "raw" else f"proc-{args.proc}"
@@ -76,18 +86,26 @@ if __name__ == "__main__":
     )
 
     print("Computing SNR for oneword+twoword, per condition and all conditions...")
-    owbase = (
-        f"sub-{args.subject}_ses-{args.session}_task-{args.task}_proc-{args.proc}_desc-oneword"
-    )
-    twbase = (
-        f"sub-{args.subject}_ses-{args.session}_task-{args.task}_proc-{args.proc}_desc-twoword"
-    )
+    if args.cond_mean:
+        meanstr = "CONDMEAN"
+    else:
+        meanstr = ""
+    owbase = f"sub-{args.subject}_ses-{args.session}_task-{args.task}_proc-{args.proc}_desc-{meanstr}oneword"
+    twbase = f"sub-{args.subject}_ses-{args.session}_task-{args.task}_proc-{args.proc}_desc-{meanstr}twoword"
     allcond_spectra_ow = {"samp_epoch": epochs[0]}
     allcond_spectra_tw = {"samp_epoch": epochs[0]}
     percond_spectra_ow = {"samp_epoch": epochs[0]}
     percond_spectra_tw = {"samp_epoch": epochs[0]}
     for tag in tqdm(["F1", "F2"], desc="Processing tag sets"):
         twtag = "F1LEFT" if tag == "F1" else "F1RIGHT"
+        if args.cond_mean:
+            ow_ep = epochs[f"MINIBLOCK/ONEWORD/{tag}"].average()
+            tw_ep = epochs[f"MINIBLOCK/TWOWORD/{twtag}"].average()
+            meanstr = "CONDMEAN"
+        else:
+            ow_ep = epochs[f"MINIBLOCK/ONEWORD/{tag}"]
+            tw_ep = epochs[f"MINIBLOCK/TWOWORD/{twtag}"]
+
         spectrum = epochs[f"MINIBLOCK/ONEWORD/{tag}"].compute_psd(
             exclude="bads", n_jobs=-1, verbose="error", **psd_kwargs
         )
@@ -110,9 +128,12 @@ if __name__ == "__main__":
         allcond_spectra_tw[twtag] = dict(psds=twpsds, freqs=twfreqs, snrs=twsnrs)
         for cond in tqdm(["WORD", "NONWORD"], desc=f"Processing OW {tag} conditions", leave=False):
             fulltag = f"ONEWORD/{cond}/{tag}"
-            spectrum = epochs["MINIBLOCK/" + fulltag].compute_psd(
-                exclude="bads", n_jobs=-1, verbose="error", **psd_kwargs
+            ow_ep = (
+                epochs["MINIBLOCK/" + fulltag].average()
+                if args.cond_mean
+                else epochs["MINIBLOCK/" + fulltag]
             )
+            spectrum = ow_ep.compute_psd(exclude="bads", n_jobs=-1, verbose="error", **psd_kwargs)
             psds, freqs = spectrum.get_data(return_freqs=True)
             snrs = ima.snr_spectrum(
                 psds,
@@ -124,9 +145,12 @@ if __name__ == "__main__":
             ["PHRASE", "NONPHRASE", "NONWORD"], desc="Processing TW conditions", leave=False
         ):
             fulltag = f"TWOWORD/{cond}/{twtag}"
-            spectrum = epochs["MINIBLOCK/" + fulltag].compute_psd(
-                exclude="bads", n_jobs=-1, verbose="error", **psd_kwargs
+            tw_ep = (
+                epochs["MINIBLOCK/" + fulltag].average()
+                if args.cond_mean
+                else epochs["MINIBLOCK/" + fulltag]
             )
+            spectrum = tw_ep.compute_psd(exclude="bads", n_jobs=-1, verbose="error", **psd_kwargs)
             psds, freqs = spectrum.get_data(return_freqs=True)
             snrs = ima.snr_spectrum(
                 psds,

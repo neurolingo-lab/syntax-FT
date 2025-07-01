@@ -8,18 +8,24 @@ import intermodulation.freqtag_spec as spec
 from intermodulation import analysis_spec
 
 
-def source_psd_epochs_avg(epochs, psd_kwargs):
-    psdgen = mne.minimum_norm.compute_source_psd_epochs(
-        epochs.copy().pick("data", exclude="bads"), return_generator=True, **psd_kwargs
-    )
+def source_psd_epochs_avg(epochs, psd_kwargs, is_average: bool = False):
+    if not is_average:
+        psdgen = mne.minimum_norm.compute_source_psd_epochs(
+            epochs.copy().pick("data", exclude="bads"), return_generator=True, **psd_kwargs
+        )
 
-    psdavg = 0
-    for i, stc in enumerate(psdgen):
-        if i == 0:
-            plotstc = stc.copy()
-        psdavg += stc.data
-    psdavg /= i + 1
-    freqs = plotstc.times
+        psdavg = 0
+        for i, stc in enumerate(psdgen):
+            if i == 0:
+                plotstc = stc.copy()
+            psdavg += stc.data
+        psdavg /= i + 1
+        freqs = plotstc.times
+    else:
+        plotstc = mne.minimum_norm.compute_source_psd_epochs(
+            epochs.copy().pick("data", exclude="bads"), **psd_kwargs
+        )
+        freqs = plotstc.times
     return psdavg, freqs, plotstc
 
 
@@ -40,6 +46,13 @@ if __name__ == "__main__":
     parser.description = (
         "Pipeline script to compute source space signal-to-noise data "
         "for individual subjects in the frequency spectrum."
+    )
+    parser.add_argument(
+        "--cond-mean",
+        action="store_true",
+        help="Whether to average the evoked epochs prior to computing the PSD"
+        "and SNR for a given condition. Will produce an additional description string in the "
+        "saved files CONDMEAN.",
     )
     parser.add_argument(
         "--morph-fsaverage",
@@ -218,8 +231,13 @@ if __name__ == "__main__":
             oneword = task == "ONEWORD"
             tasktag = tag if oneword else twtag
             all_label = f"{task}/{tasktag}"
+            all_eps = (
+                epochs[f"MINIBLOCK/{all_label}"].average()
+                if args.cond_mean
+                else epochs[f"MINIBLOCK/{all_label}"]
+            )
             psdavg, freqs, plotstc = source_psd_epochs_avg(
-                epochs[f"MINIBLOCK/{all_label}"], psd_kwargs
+                epochs[f"MINIBLOCK/{all_label}"], psd_kwargs, args.cond_mean
             )
             snrs = ima.snr_spectrum(
                 psdavg,
@@ -234,7 +252,10 @@ if __name__ == "__main__":
             taskconds = ["WORD", "NONWORD"] if oneword else ["PHRASE", "NONPHRASE", "NONWORD"]
             for cond in taskconds:
                 cond_label = f"MINIBLOCK/{task}/{cond}/{tasktag}"
-                psdavg, freqs, plotstc = source_psd_epochs_avg(epochs[cond_label], psd_kwargs)
+                cond_eps = epochs[cond_label].average if args.cond_mean else epochs[cond_label]
+                psdavg, freqs, plotstc = source_psd_epochs_avg(
+                    cond_eps, psd_kwargs, args.cond_mean
+                )
                 snrs = ima.snr_spectrum(
                     psdavg,
                     noise_n_neighbor_freqs=snr_neighbor_K,

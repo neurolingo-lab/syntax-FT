@@ -5,6 +5,23 @@ import numpy as np
 
 from intermodulation.analysis_spec import make_parser, pick_points
 
+
+def get_clim_pct(
+    data: np.ndarray, fidx: int, lower_perc: float, middle_perc: float, upper_perc: float
+) -> dict:
+    fdata = data[:, fidx]
+    lb = np.percentile(fdata, lower_perc)
+    if lb <= 1:
+        lb = 1.0
+    mv = np.percentile(fdata, middle_perc)
+    if mv <= 1.5 or mv <= lb:
+        mv = 1.5
+    ub = np.percentile(fdata, upper_perc)
+    if ub <= 2.0 or ub <= mv:
+        ub = 3.0
+    return dict(kind="value", lims=np.array((lb, mv, ub)))
+
+
 if __name__ == "__main__":
     parser = make_parser(group_level=True, plots=True)
     parser.description = (
@@ -25,14 +42,33 @@ if __name__ == "__main__":
         "the `fsaverage` subject.",
     )
     parser.add_argument(
-        "--meg-true-samprate",
-        type=float,
-        default=1000.49,
+        "--freq-bin-offset",
+        type=int,
+        default=-1,
         help="The MEGIN Elektra at FCBG is known to sample slightly faster than advertised, which "
         "affects the true frequencies observed in the FFT and will lead to a slightly lower freq "
-        "than in reality. This allows for us to correct. Specify w.r.t. a true 1000 Hz rate.",
+        "than in reality. This allows for us to correct in frequency bin steps. negative values "
+        "are ok.",
+    )
+    parser.add_argument(
+        "--clim",
+        nargs=3,
+        type=float,
+        help="Percentiles to use as lower, middle, and upper anchors of the color map. Note that "
+        "if any chosen percentile (low, mid, high) results in a value of < 1, then that value will"
+        " instead be set to a default of (1.5, 2.5, 4) for L/M/H respectively.",
+    )
+    parser.add_argument(
+        "--auto-clim",
+        action="store_true",
+        help="Whether to automatically determine the color map for brain plots from the data. "
+        "Lower and upper bounds will be chosen at the 5th and 95th percentiles of the data for the"
+        " chosen plotting frequencies.",
     )
     args = parser.parse_args()
+
+    if args.auto_clim and len(args.clim) == 3:
+        raise ValueError("Cannot set `auto-clim` and provide bounds for color map!")
 
     # STORAGE LOCATIONS
     stc_root = args.results_dir / "sub-all"
@@ -42,8 +78,6 @@ if __name__ == "__main__":
     (savepath / "allcond").mkdir(parents=True, exist_ok=True)
     (savepath / "percond").mkdir(parents=True, exist_ok=True)
 
-    samprate_correction = (2 * 1000) / (args.meg_true_samprate * 2)
-
     tag_f = (6, 7.05882353)
 
     tasks = ("ONEWORD", "TWOWORD")
@@ -52,10 +86,17 @@ if __name__ == "__main__":
     ow_conds = ("WORD", "NONWORD")
     tw_conds = ("PHRASE", "NONPHRASE", "NONWORD")
 
-    ow_clim = dict(kind="value", lims=np.array((1.09, 2, 4)))
-    percond_ow_clim = dict(kind="value", lims=np.array((1.5, 2.5, 3)))
-    tw_clim = dict(kind="value", lims=np.array((1.09, 2, 4)))
-    percond_tw_clim = dict(kind="value", lims=np.array((1.1, 2.5, 3)))
+    if not args.auto_clim and len(args.clim) != 3:
+        allcond_clim = dict(kind="value", lims=np.array((1.09, 2, 4)))
+        percond_clim = dict(kind="value", lims=np.array((1.5, 2.5, 3)))
+    elif len(args.clim) == 3:
+        lb, mv, ub = args.clim
+        allcond_clim = None
+        percond_clim = None
+    else:
+        lb, mv, ub = (55, 85, 99.9)
+        allcond_clim = None
+        percond_clim = None
 
     brain_kwargs = dict(
         hemi="split",
@@ -89,10 +130,11 @@ if __name__ == "__main__":
         },
     }
 
+    f_offset = (1 / 28.333333) * args.freq_bin_offset
+    f_idx_offset = args.freq_bin_offset
+
     for task in tasks:
         oneword = True if task == "ONEWORD" else False
-        clim = ow_clim if oneword else tw_clim
-        percond_clim = percond_ow_clim if oneword else percond_tw_clim
         tasktags = ow_tags if oneword else tw_tags
 
         allcond_taskpath = savepath / f"allcond/{task.lower()}"
@@ -105,7 +147,9 @@ if __name__ == "__main__":
                 stc_root / f"allcond/{task.lower()}/grand_mean_snr_{tag}-lh.stc"
             )
             data = stc.data.copy()
+            freqs = stc.times.copy()
 
+            # First all-conditions-combined plots
             if oneword:
                 plotfreqs = (tag_f[0],) if tag == "F1" else (tag_f[1],)
             else:
@@ -115,9 +159,15 @@ if __name__ == "__main__":
                     title_taskpart[int(not oneword)] + title_tagpart[task][tag] + title_allcond
                 )
                 stc.data = data
+                fidx = np.abs(freqs - f).argmin() + f_idx_offset
+                if allcond_clim is None:
+                    currclim = get_clim_pct(data, fidx, lb, mv, ub)
+                else:
+                    currclim = allcond_clim
+
                 brain = stc.plot(
-                    initial_time=f * samprate_correction,
-                    clim=clim,
+                    initial_time=f + f_offset,
+                    clim=currclim,
                     title=curr_title,
                     **brain_kwargs,
                 )
@@ -126,6 +176,8 @@ if __name__ == "__main__":
                 brain.save_image(allcond_taskpath / f"brain_grand_mean_snr_{tag}_{int(f):d}Hz.png")
                 brain.close()
                 del brain
+
+            # Then per-condition plots
             for cond in ow_conds if oneword else tw_conds:
                 stc = mne.read_source_estimate(
                     stc_root / f"percond/{task.lower()}/grand_mean_snr_{cond}-{tag}-lh.stc"
@@ -138,9 +190,16 @@ if __name__ == "__main__":
                         + title_condpart[task][cond]
                     )
                     stc.data = data
+
+                    fidx = np.abs(freqs - f).argmin() - f_idx_offset
+                    if allcond_clim is None:
+                        currclim = get_clim_pct(data, fidx, lb, mv, ub)
+                    else:
+                        currclim = percond_clim
+
                     brain = stc.plot(
-                        initial_time=f * samprate_correction,
-                        clim=percond_clim,
+                        initial_time=f + f_offset,
+                        clim=currclim,
                         title=curr_title,
                         **brain_kwargs,
                     )
