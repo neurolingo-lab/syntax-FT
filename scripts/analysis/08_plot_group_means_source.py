@@ -2,6 +2,7 @@ from pathlib import Path
 
 import mne
 import numpy as np
+import pandas as pd
 
 from intermodulation.analysis_spec import make_parser, pick_points
 
@@ -133,6 +134,11 @@ if __name__ == "__main__":
     f_offset = (1 / 28.333333) * args.freq_bin_offset
     f_idx_offset = args.freq_bin_offset
 
+    freqs = pd.read_pickle(
+        args.bids_root / "derivatives/mne-bids-pipeline/sub-02/ses-01/meg/"
+        "sub-02_ses-01_task-syntaxIM_desc-morphFSAVGtwoword_allcondSNRsource.pkl"
+    )["F1LEFT"]["freqs"]
+
     for task in tasks:
         oneword = True if task == "ONEWORD" else False
         tasktags = ow_tags if oneword else tw_tags
@@ -147,8 +153,6 @@ if __name__ == "__main__":
                 stc_root / f"allcond/{task.lower()}/grand_mean_snr_{tag}-lh.stc"
             )
             data = stc.data.copy()
-            freqs = stc.times.copy()
-
             # First all-conditions-combined plots
             if oneword:
                 plotfreqs = (tag_f[0],) if tag == "F1" else (tag_f[1],)
@@ -191,7 +195,7 @@ if __name__ == "__main__":
                     )
                     stc.data = data
 
-                    fidx = np.abs(freqs - f).argmin() - f_idx_offset
+                    fidx = np.abs(freqs - f).argmin() + f_idx_offset
                     if allcond_clim is None:
                         currclim = get_clim_pct(data, fidx, lb, mv, ub)
                     else:

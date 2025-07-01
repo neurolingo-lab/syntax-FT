@@ -20,6 +20,8 @@ def source_psd_epochs_avg(epochs, psd_kwargs: dict):
     )
     psdavg, freqs = mne.time_frequency.psd_array_welch(plotstc.data, **kwargs)
     plotstc.data = psdavg
+    plotstc.tmin = freqs.min()
+    plotstc.tstep = freqs[1] - freqs[0]
     return psdavg, freqs, plotstc
 
 
@@ -178,9 +180,11 @@ if __name__ == "__main__":
     else:
         morphstr = ""
 
+    minidur = spec.WORD_DUR * spec.MINIBLOCK_LEN
+
     events, evdict = mne.events_from_annotations(raw)
     keepev = {k: v for k, v in evdict.items() if k.split("/")[0] == "MINIBLOCK"}
-    epochs = mne.Epochs(raw, event_id=keepev, tmin=-0.2, tmax=21.0, picks="all", preload=True)
+    epochs = mne.Epochs(raw, event_id=keepev, tmin=-0.2, tmax=minidur, picks="all", preload=True)
 
     del raw
     if epochs.info["sfreq"] >= 2000:
@@ -191,7 +195,8 @@ if __name__ == "__main__":
 
     # Compute source space PSD and then SNR
     # Global parameters for different FFTs
-    minidur = spec.WORD_DUR * spec.MINIBLOCK_LEN
+    tmin = 0.0
+    tmax = minidur
 
     snr_skip_neighbor_J = analysis_spec.noise_skip_neighbor_freqs
     snr_neighbor_K = analysis_spec.noise_n_neighbor_freqs
@@ -200,6 +205,7 @@ if __name__ == "__main__":
         dict(
             inverse_operator=inv,
             sfreq=sfreq,
+            n_fft=int(epochs.info["sfreq"] * (tmax - tmin)),
             n_jobs=-1,
         )
     )
@@ -237,6 +243,7 @@ if __name__ == "__main__":
             for cond in taskconds:
                 cond_label = f"MINIBLOCK/{task}/{cond}/{tasktag}"
                 psdavg, freqs, plotstc = source_psd_epochs_avg(epochs[cond_label], psd_kwargs)
+                print(psdavg.shape, freqs.shape, plotstc.data.shape, plotstc.times.shape)
                 snrs = ima.snr_spectrum(
                     psdavg,
                     noise_n_neighbor_freqs=snr_neighbor_K,

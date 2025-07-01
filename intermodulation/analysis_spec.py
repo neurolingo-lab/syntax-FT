@@ -101,7 +101,7 @@ sensor_fft_pars = dict(method="welch", **fft_pars)
 
 source_fft_pars = dict(lambda2=1 / 9.0, method="MNE", **fft_pars)
 
-noise_n_neighbor_freqs = 9
-noise_skip_neighbor_freqs = 2
+noise_n_neighbor_freqs = 13
+noise_skip_neighbor_freqs = 1
 
 psd_plot_freqs = (0, 16.6666667)
