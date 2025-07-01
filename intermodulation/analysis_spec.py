@@ -92,15 +92,16 @@ def make_parser(group_level: bool = False, plots: bool = False) -> ArgumentParse
 fft_pars = dict(
     fmin=0.1,
     fmax=140.0,
+    n_overlap=0,
+    n_per_seg=None,
+    window="boxcar",
 )
 
-sensor_fft_pars = dict(method="welch", n_overlap=0, n_per_seg=None, window="boxcar", **fft_pars)
+sensor_fft_pars = dict(method="welch", **fft_pars)
 
-source_fft_pars = dict(
-    lambda2=1 / 9.0, method="MNE", nave=1, bandwidth="hann", low_bias=True, **fft_pars
-)
+source_fft_pars = dict(lambda2=1 / 9.0, method="MNE", **fft_pars)
 
-noise_n_neighbor_freqs = 5
-noise_skip_neighbor_freqs = 1
+noise_n_neighbor_freqs = 9
+noise_skip_neighbor_freqs = 2
 
 psd_plot_freqs = (0, 16.6666667)

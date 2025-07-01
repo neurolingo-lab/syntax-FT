@@ -11,4 +11,4 @@
 source /tmp/gercek_li_venv/bin/activate
 python \
     /home/gercek/Projects/language-intermodulation/scripts/analysis/02a_plot_subject_sensor_snr.py\
-    --proc clean --subject $PIPELINE_SUB --session 01 --task $PIPELINE_TASK
+    --proc clean --subject $PIPELINE_SUB --session 01 --task $PIPELINE_TASK --cond-mean

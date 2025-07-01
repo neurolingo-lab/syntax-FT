@@ -10,4 +10,4 @@
 7z x /home/gercek/gercek_li_venv.7z -o/tmp/
 source /tmp/gercek_li_venv/bin/activate
 python /home/gercek/Projects/language-intermodulation/scripts/analysis/02_subject_sensor_snr.py \
-    --proc clean --subject $PIPELINE_SUB --task $PIPELINE_TASK --session 01
+    --proc clean --subject $PIPELINE_SUB --task $PIPELINE_TASK --session 01 --cond-mean

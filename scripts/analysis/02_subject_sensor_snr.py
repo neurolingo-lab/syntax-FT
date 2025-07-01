@@ -106,12 +106,8 @@ if __name__ == "__main__":
             ow_ep = epochs[f"MINIBLOCK/ONEWORD/{tag}"]
             tw_ep = epochs[f"MINIBLOCK/TWOWORD/{twtag}"]
 
-        spectrum = epochs[f"MINIBLOCK/ONEWORD/{tag}"].compute_psd(
-            exclude="bads", n_jobs=-1, verbose="error", **psd_kwargs
-        )
-        twspectrum = epochs[f"MINIBLOCK/TWOWORD/{twtag}"].compute_psd(
-            exclude="bads", n_jobs=-1, verbose="error", **psd_kwargs
-        )
+        spectrum = ow_ep.compute_psd(exclude="bads", n_jobs=-1, verbose="error", **psd_kwargs)
+        twspectrum = tw_ep.compute_psd(exclude="bads", n_jobs=-1, verbose="error", **psd_kwargs)
         psds, freqs = spectrum.get_data(return_freqs=True)
         twpsds, twfreqs = twspectrum.get_data(return_freqs=True)
         snrs = ima.snr_spectrum(

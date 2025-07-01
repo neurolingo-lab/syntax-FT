@@ -15,6 +15,13 @@ if __name__ == "__main__":
         "for individual subjects in the frequency spectrum."
     )
     parser.add_argument(
+        "--cond-mean",
+        action="store_true",
+        help="Whether to use the SNR/PSD from the evoked epochs or the SNR/PSD from per-epoch"
+        " data.",
+    )
+
+    parser.add_argument(
         "--proc",
         type=str,
         default="clean",
@@ -31,6 +38,8 @@ if __name__ == "__main__":
     allcond_path.mkdir(parents=True, exist_ok=True)
     percond_path = savepath / "percond"
     percond_path.mkdir(parents=True, exist_ok=True)
+
+    meanstr = "CONDMEAN" if args.cond_mean else ""
 
     derivatives_root = bids_root / "derivatives/mne-bids-pipeline"
 
@@ -58,12 +67,12 @@ if __name__ == "__main__":
 
         subfiles_allcond[task] = list(
             derivatives_root.rglob(
-                f"sub-*_ses-*_task-{args.task}_proc-{args.proc}_desc-{task.lower()}_allcondSNR.pkl"
+                f"sub-*_ses-*_task-{args.task}_proc-{args.proc}_desc-{meanstr + task.lower()}_allcondSNR.pkl"
             )
         )
         subfiles_percond[task] = list(
             derivatives_root.rglob(
-                f"sub-*_ses-*_task-{args.task}_proc-{args.proc}_desc-{task.lower()}_percondSNR.pkl"
+                f"sub-*_ses-*_task-{args.task}_proc-{args.proc}_desc-{meanstr + task.lower()}_percondSNR.pkl"
             )
         )
         for tasktag in tqdm(tasktags, desc=f"Processing task {task} freq tags", leave=False):
@@ -75,7 +84,11 @@ if __name__ == "__main__":
             ):
                 with open(file, "rb") as f:
                     filedata = pickle.load(f)
-                psds_allcond[task][tasktag].append(np.mean(filedata[tasktag]["psds"], axis=0))
+                if not args.cond_mean:
+                    subpsd = np.mean(filedata[tasktag]["psds"], axis=0)
+                else:
+                    subpsd = filedata[tasktag]["psds"]
+                psds_allcond[task][tasktag].append(subpsd)
             grand_mean_psd = np.mean(psds_allcond[task][tasktag], axis=0)
             psds_allcond[task][tasktag] = []
             # grand_mean_snr = np.average(snrs_allcond[task][tasktag], axis=0)
@@ -102,9 +115,11 @@ if __name__ == "__main__":
 
                 for i, cond in enumerate(taskconds):
                     cond_label = f"{cond}/{tasktag}"
-                    psds_percond[task][cond_label].append(
-                        np.mean(filedata["/".join((task, cond_label))]["psds"], axis=0)
-                    )
+                    if not args.cond_mean:
+                        subpsd = np.mean(filedata["/".join((task, cond_label))]["psds"], axis=0)
+                    else:
+                        subpsd = filedata["/".join((task, cond_label))]["psds"]
+                    psds_percond[task][cond_label].append(subpsd)
 
             for cond in taskconds:
                 cond_label = f"{cond}/{tasktag}"

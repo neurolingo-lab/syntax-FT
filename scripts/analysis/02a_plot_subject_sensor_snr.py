@@ -14,6 +14,12 @@ if __name__ == "__main__":
         "this script requires the SNR data to be pre-computed and saved in the derivatives"
         "directory."
     )
+    parser.add_argument(
+        "--cond-mean",
+        action="store_true",
+        help="Whether to use the SNR/PSD from the evoked epochs or the SNR/PSD from per-epoch"
+        " data.",
+    )
 
     args = parser.parse_args()
 
@@ -47,8 +53,9 @@ if __name__ == "__main__":
         root=derivatives_root,
         check=False,  # Need to disable checking for derivatives
     )
-    ow_base_path = base_bidspath.copy().update(description="oneword")
-    tw_base_path = base_bidspath.copy().update(description="twoword")
+    condmeanstr = "CONDMEAN" if args.cond_mean else ""
+    ow_base_path = base_bidspath.copy().update(description=f"{condmeanstr}oneword")
+    tw_base_path = base_bidspath.copy().update(description=f"{condmeanstr}twoword")
 
     print("Plotting SNR and SNR topos for oneword+twoword, all conditions combined...")
     plot_freqs = (1, 15)
@@ -91,7 +98,7 @@ if __name__ == "__main__":
             )
             # Topomap plots
             topofig = imp.snr_topo(
-                data["snrs"].mean(axis=0),
+                data["snrs"].mean(axis=0) if not args.cond_mean else data["snrs"],
                 epochs.pick("data", exclude="bads"),
                 data["freqs"],
                 fmin=plot_freqs[0],
@@ -156,7 +163,7 @@ if __name__ == "__main__":
                 plotpsd=True,
             )
             topofig = imp.snr_topo(
-                data["snrs"].mean(axis=0),
+                data["snrs"].mean(axis=0) if not args.cond_mean else data["snrs"],
                 epochs.pick("data", exclude="bads"),
                 data["freqs"],
                 fmin=plot_freqs[0],
