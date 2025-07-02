@@ -16,10 +16,10 @@ def get_clim_pct(
         lb = 1.0
     mv = np.percentile(fdata, middle_perc)
     if mv <= 1.5 or mv <= lb:
-        mv = 1.5
+        mv = 3
     ub = np.percentile(fdata, upper_perc)
     if ub <= 2.0 or ub <= mv:
-        ub = 3.0
+        ub = 15
     return dict(kind="value", lims=np.array((lb, mv, ub)))
 
 

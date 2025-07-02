@@ -9,19 +9,24 @@ import intermodulation.freqtag_spec as spec
 from intermodulation import analysis_spec
 
 
-def source_psd_epochs_avg(epochs, psd_kwargs: dict):
+def source_psd_epochs_avg(epochs, psd_kwargs: dict, subject: str, session: str):
     evoked = epochs.average()
     kwargs = deepcopy(psd_kwargs)
-    plotstc = mne.minimum_norm.apply_inverse(
+    stc = mne.minimum_norm.apply_inverse(
         evoked,
         inverse_operator=kwargs.pop("inverse_operator"),
         lambda2=kwargs.pop("lambda2"),
         method=kwargs.pop("method"),
     )
-    psdavg, freqs = mne.time_frequency.psd_array_welch(plotstc.data, **kwargs)
-    plotstc.data = psdavg
-    plotstc.tmin = freqs.min()
-    plotstc.tstep = freqs[1] - freqs[0]
+    psdavg, freqs = mne.time_frequency.psd_array_welch(stc.data, **kwargs)
+    fs_sub = f"sub-{subject}_ses-{session}" if subject != "fsaverage" else subject
+    plotstc = mne.SourceEstimate(
+        data=psdavg,
+        vertices=stc.vertices,
+        tmin=freqs.min(),
+        tstep=freqs[1] - freqs[0],
+        subject=fs_sub,
+    )
     return psdavg, freqs, plotstc
 
 
@@ -211,6 +216,7 @@ if __name__ == "__main__":
     )
 
     print("Computing SNR for oneword+twoword, per condition and all conditions...")
+    savesub = "fsaverage" if args.morph_fsaverage else args.subject
     owbase = f"sub-{args.subject}_ses-{args.session}_task-{args.task}_desc-{morphstr}oneword"
     twbase = f"sub-{args.subject}_ses-{args.session}_task-{args.task}_desc-{morphstr}twoword"
     allcond_spectra_ow = {}
@@ -227,7 +233,7 @@ if __name__ == "__main__":
             tasktag = tag if oneword else twtag
             all_label = f"{task}/{tasktag}"
             psdavg, freqs, plotstc = source_psd_epochs_avg(
-                epochs[f"MINIBLOCK/{all_label}"], psd_kwargs
+                epochs[f"MINIBLOCK/{all_label}"], psd_kwargs, savesub, args.session
             )
             snrs = ima.snr_spectrum(
                 psdavg,
@@ -242,7 +248,9 @@ if __name__ == "__main__":
             taskconds = ["WORD", "NONWORD"] if oneword else ["PHRASE", "NONPHRASE", "NONWORD"]
             for cond in taskconds:
                 cond_label = f"MINIBLOCK/{task}/{cond}/{tasktag}"
-                psdavg, freqs, plotstc = source_psd_epochs_avg(epochs[cond_label], psd_kwargs)
+                psdavg, freqs, plotstc = source_psd_epochs_avg(
+                    epochs[cond_label], psd_kwargs, savesub, args.session
+                )
                 print(psdavg.shape, freqs.shape, plotstc.data.shape, plotstc.times.shape)
                 snrs = ima.snr_spectrum(
                     psdavg,
