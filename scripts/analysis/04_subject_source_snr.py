@@ -216,7 +216,6 @@ if __name__ == "__main__":
     )
 
     print("Computing SNR for oneword+twoword, per condition and all conditions...")
-    savesub = "fsaverage" if args.morph_fsaverage else args.subject
     owbase = f"sub-{args.subject}_ses-{args.session}_task-{args.task}_desc-{morphstr}oneword"
     twbase = f"sub-{args.subject}_ses-{args.session}_task-{args.task}_desc-{morphstr}twoword"
     allcond_spectra_ow = {}
@@ -233,7 +232,7 @@ if __name__ == "__main__":
             tasktag = tag if oneword else twtag
             all_label = f"{task}/{tasktag}"
             psdavg, freqs, plotstc = source_psd_epochs_avg(
-                epochs[f"MINIBLOCK/{all_label}"], psd_kwargs, savesub, args.session
+                epochs[f"MINIBLOCK/{all_label}"], psd_kwargs, args.subject, args.session
             )
             snrs = ima.snr_spectrum(
                 psdavg,
@@ -249,7 +248,7 @@ if __name__ == "__main__":
             for cond in taskconds:
                 cond_label = f"MINIBLOCK/{task}/{cond}/{tasktag}"
                 psdavg, freqs, plotstc = source_psd_epochs_avg(
-                    epochs[cond_label], psd_kwargs, savesub, args.session
+                    epochs[cond_label], psd_kwargs, args.subject, args.session
                 )
                 print(psdavg.shape, freqs.shape, plotstc.data.shape, plotstc.times.shape)
                 snrs = ima.snr_spectrum(
