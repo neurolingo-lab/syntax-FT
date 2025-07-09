@@ -791,7 +791,7 @@ Only used when [`use_maxwell_filter=True`][mne_bids_pipeline._config.use_maxwell
 # If you need more fancy analysis, you are already likely past this kind
 # of tips! 😇
 
-l_freq: float | None = None  # TODO: Get value used by Hauk
+l_freq: float | None = 0.1  # TODO: Get value used by Hauk
 """
 The low-frequency cut-off in the highpass filtering step.
 Keep it `None` if no highpass filtering should be applied.
@@ -817,7 +817,7 @@ lowpass filter. By default it's `'auto'` and uses default MNE
 parameters.
 """
 
-notch_freq: float | Sequence[float] | None = [50, 100]
+notch_freq: float | Sequence[float] | None = None  # [50, 100]
 """
 Notch filter frequency. More than one frequency can be supplied, e.g. to remove
 harmonics. Keep it `None` if no notch filter should be applied.
